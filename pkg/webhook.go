@@ -247,6 +247,7 @@ func NewWebHookServer(wo *WebHookOptions) (ws *WebHookServer, err error) {
 
 	ws = &WebHookServer{
 		clientSet:     clientSet,
+		Options:       wo,
 		pluginManager: plugins.NewPluginManager(),
 		Server: &http.Server{
 			Addr:      fmt.Sprintf(":%v", wo.Port),
