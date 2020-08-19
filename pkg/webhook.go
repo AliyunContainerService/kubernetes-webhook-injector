@@ -181,7 +181,7 @@ func (ws *WebHookServer) registerMutatingWebhookConfiguration() error {
 			portInt32 := int32(port)
 
 			mutatingWebHook := mutateV1beta1.MutatingWebhook{
-				Name:  MutatingWebhookConfigurationName,
+				Name:  "kubernetes-webhook-injector.ack.aliyun.com",
 				Rules: mutatingRules,
 				ClientConfig: mutateV1beta1.WebhookClientConfig{
 					Service: &mutateV1beta1.ServiceReference{
