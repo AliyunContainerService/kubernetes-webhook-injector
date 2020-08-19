@@ -25,8 +25,6 @@ type WebHookOptions struct {
 	LeaderElection bool
 	// kubeconf path
 	KubeConf string
-	// plugin and configuration
-	Plugins Plugins
 }
 
 // NewWebHookOptions parse the command line params and initialize the server
@@ -46,12 +44,10 @@ func NewWebHookOptions() (options *WebHookOptions, err error) {
 
 // init flag params and parse
 func (wo *WebHookOptions) init() {
-	flag.Var(&wo.Plugins, "plugins", "The configuration of plugins.")
 	// tls configurations
 	flag.StringVar(&wo.TLSCaCertPath, "ca", "/run/secrets/tls/ca-cert.pem", "The path of ca cert.")
 	flag.StringVar(&wo.TLSCertPath, "cert", "/run/secrets/tls/server-cert.pem", "The path of TLS cert.")
 	flag.StringVar(&wo.TLSKeyPath, "key", "/run/secrets/tls/server-key.pem", "The path of TLS key.")
-	flag.StringVar(&wo.Port, "port", "443", "The port of webHook server.")
 
 	flag.StringVar(&wo.ServiceName, "service-name", "kubernetes-webhook-injector", "The service of kubernetes-webhook-injector.")
 	flag.StringVar(&wo.ServiceNamespace, "service-namespace", "kube-system", "The namespace of kubernetes-webhook-injector.")
@@ -83,17 +79,4 @@ func (wo *WebHookOptions) valid() (passed bool, msg string) {
 	// code block
 
 	return true, ""
-}
-
-// string or array params
-// add duck type to []string
-type Plugins []string
-
-func (p *Plugins) String() string {
-	return "Plugins' Configuration"
-}
-
-func (p *Plugins) Set(value string) error {
-	*p = append(*p, value)
-	return nil
 }

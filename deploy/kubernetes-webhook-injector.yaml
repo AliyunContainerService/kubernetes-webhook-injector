@@ -1,0 +1,50 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kubernetes-webhook-injector
+  namespace: kube-system
+  labels:
+    app: kubernetes-webhook-injector
+spec:
+  replicas: 1 # The default is primary and standby mode (currently cold standby)
+  selector:
+    matchLabels:
+      app: kubernetes-webhook-injector
+  template:
+    metadata:
+      labels:
+        app: kubernetes-webhook-injector
+    spec:
+      containers:
+        - image: registry.aliyuncs.com/ringtail/kubernetes-webhook-injector:v0.0.1-a931868-aliyun
+          imagePullPolicy: Always
+          name: kubernetes-webhook-injector
+          resources:
+            limits:
+              cpu: 100m
+              memory: 100Mi
+            requests:
+              cpu: 100m
+              memory: 100Mi
+          volumeMounts:
+          - name: webhook-certs
+            mountPath: /run/secrets/tls
+      # todo change service account to kubernetes-webhook-injector as default
+      serviceAccountName: admin
+      volumes:
+        - name: webhook-certs
+          secret:
+            secretName: kubernetes-webhook-injector-certs
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: kubernetes-webhook-injector
+  namespace: kube-system
+spec:
+  ports:
+    - port: 443
+      targetPort: 443
+      name: webhook
+  selector:
+    app: kubernetes-webhook-injector

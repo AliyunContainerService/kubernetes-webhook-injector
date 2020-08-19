@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"github.com/AliyunContainerService/kubernetes-webhook-injector/plugins"
 	"io/ioutil"
 	"k8s.io/api/admission/v1beta1"
 	mutateV1beta1 "k8s.io/api/admissionregistration/v1beta1"
@@ -15,10 +16,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
-	"k8s.io/client-go/util/homedir"
 	log "k8s.io/klog"
 	"net/http"
-	"path/filepath"
 	"strconv"
 )
 
@@ -45,9 +44,10 @@ func init() {
 
 // WebHook Server to handle patch request
 type WebHookServer struct {
-	clientSet kubernetes.Interface
-	Options   *WebHookOptions
-	Server    *http.Server
+	pluginManager *plugins.PluginManager
+	clientSet     kubernetes.Interface
+	Options       *WebHookOptions
+	Server        *http.Server
 }
 
 // Http handler of patch request
@@ -113,8 +113,36 @@ func (ws *WebHookServer) Serve(w http.ResponseWriter, r *http.Request) {
 // mutate the pod spec and patch pod
 func (ws *WebHookServer) mutate(ar *v1beta1.AdmissionReview) *v1beta1.AdmissionResponse {
 	req := ar.Request
-	log.Infof("AdmissionReview for Kind=%v, Namespace=%v Name=%v (%v) UID=%v patchOperation=%v UserInfo=%v",
+	// default log level is 2
+	log.V(5).Infof("AdmissionReview for Kind=%v, Namespace=%v Name=%v (%v) UID=%v patchOperation=%v UserInfo=%v",
 		req.Kind, req.Namespace, req.Name, req.Object, req.UID, req.Operation, req.UserInfo)
+
+	raw := req.Object.Raw
+	pod := &v1.Pod{}
+	if err := json.Unmarshal(raw, pod); err != nil {
+		log.Errorf("Failed to unmarshal pod %v,because of %v", raw, err)
+		return &v1beta1.AdmissionResponse{
+			Allowed: true,
+		}
+	}
+
+	patchBytes, err := ws.pluginManager.HandlePatchPod(pod)
+	if err != nil {
+		log.Errorf("Failed to patch pod %v,because of %v", pod, err)
+		return &v1beta1.AdmissionResponse{
+			Allowed: true,
+		}
+	}
+
+	if patchBytes != nil {
+		response := &v1beta1.AdmissionResponse{Allowed: true}
+		response.Patch = patchBytes
+		patchType := v1beta1.PatchTypeJSONPatch
+		response.PatchType = &patchType
+		// change patch debug log level to 5
+		log.V(5).Infof("Successfully patch pod %s in %s with pathOps %v", pod.Name, pod.Namespace, string(patchBytes))
+		return response
+	}
 
 	return &v1beta1.AdmissionResponse{
 		Allowed: true,
@@ -199,11 +227,11 @@ func (ws *WebHookServer) Run() (err error) {
 // NewWebHookServer return mutate web server
 func NewWebHookServer(wo *WebHookOptions) (ws *WebHookServer, err error) {
 
-	if wo.KubeConf == "" {
-		if home := homedir.HomeDir(); home != "" {
-			wo.KubeConf = filepath.Join(home, ".kube", "config")
-		}
-	}
+	//if wo.KubeConf == "" {
+	//	if home := homedir.HomeDir(); home != "" {
+	//		wo.KubeConf = filepath.Join(home, ".kube", "config")
+	//	}
+	//}
 
 	config, err := clientcmd.BuildConfigFromFlags("", wo.KubeConf)
 	if err != nil {
@@ -218,7 +246,8 @@ func NewWebHookServer(wo *WebHookOptions) (ws *WebHookServer, err error) {
 	}
 
 	ws = &WebHookServer{
-		clientSet: clientSet,
+		clientSet:     clientSet,
+		pluginManager: plugins.NewPluginManager(),
 		Server: &http.Server{
 			Addr:      fmt.Sprintf(":%v", wo.Port),
 			TLSConfig: &tls.Config{Certificates: []tls.Certificate{wo.TLSPair}},
