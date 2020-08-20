@@ -134,7 +134,7 @@ if [[ "$IN_POD" == "true" ]];  then
 	  "kind": "Secret",
 	  "apiVersion": "v1",
 	  "metadata": {
-	    "name": "kubernetes-webhook-injector-certs",
+	    "name": ""kubernetes-webhook-injector-certs,
 	    "namespace": "'"$NAMESPACE"'"
 	  },
 	  "data": {
