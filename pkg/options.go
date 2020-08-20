@@ -56,7 +56,7 @@ func (wo *WebHookOptions) init() {
 	flag.StringVar(&wo.KubeConf, "kubeconf", "", "use ~/.kube/conf as default.")
 	// todo enable leader election to support high performance
 	flag.BoolVar(&wo.LeaderElection, "leaderElection", true, "Enable leaderElection or not.")
-
+	log.InitFlags(flag.CommandLine)
 	flag.Parse()
 }
 

@@ -16,7 +16,7 @@ spec:
         app: kubernetes-webhook-injector
     spec:
       containers:
-        - image: registry.aliyuncs.com/ringtail/kubernetes-webhook-injector:v0.0.1-a0267a7-aliyun
+        - image: registry.aliyuncs.com/ringtail/kubernetes-webhook-injector:v0.0.1-3a24119-aliyun
           imagePullPolicy: Always
           name: kubernetes-webhook-injector
           resources:
