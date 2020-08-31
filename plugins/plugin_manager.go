@@ -3,13 +3,19 @@ package plugins
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/AliyunContainerService/kubernetes-webhook-injector/pkg/openapi"
 	"github.com/AliyunContainerService/kubernetes-webhook-injector/plugins/mock"
+	"github.com/AliyunContainerService/kubernetes-webhook-injector/plugins/rds_whitelist"
+	"github.com/AliyunContainerService/kubernetes-webhook-injector/plugins/security_group"
+	"github.com/AliyunContainerService/kubernetes-webhook-injector/plugins/utils"
+	"k8s.io/api/admission/v1beta1"
 	apiv1 "k8s.io/api/core/v1"
 	log "k8s.io/klog"
 )
 
 var (
 	pluginManagerSingleton *PluginManager
+	OpenAPIAuthInfo        openapi.AKInfo
 )
 
 func init() {
@@ -19,6 +25,8 @@ func init() {
 
 	// register mock plugin
 	pluginManagerSingleton.register(mock.NewMockPlugin())
+	pluginManagerSingleton.register(security_group.NewSgPlugin())
+	pluginManagerSingleton.register(rds_whitelist.NewRdsPlugin())
 }
 
 type PluginManager struct {
@@ -36,25 +44,41 @@ func (pm *PluginManager) register(plugin Plugin) (err error) {
 }
 
 // handle patch pod operations
-func (pm *PluginManager) HandlePatchPod(pod *apiv1.Pod) ([]byte, error) {
+func (pm *PluginManager) HandlePatchPod(pod *apiv1.Pod, operation v1beta1.Operation) ([]byte, error) {
+	patchOperations := make([]utils.PatchOperation, 0)
 	for _, plugin := range pm.plugins {
 		if plugin.MatchAnnotations(pod.Annotations) {
-			patchOperations := plugin.Patch(pod)
-			if len(patchOperations) == 0 {
-				continue
-			} else {
-				patchBytes, err := json.Marshal(patchOperations)
-				if err != nil {
-					log.Warningf("Failed to marshal patch bytes by plugin %s and skip,because of %v", plugin.Name(), err)
-					continue
-				} else {
-					return patchBytes, nil
-				}
-			}
+			//如果是创建，调用Patch为Pod注入init容器做各种操作
+			singlePatchOperations := plugin.Patch(pod, operation)
+			patchOperations = append(patchOperations, singlePatchOperations...)
+		}
+	}
+	if len(patchOperations) > 0 {
+		patchBytes, err := json.Marshal(mergePatchOperations(patchOperations))
+		if err != nil {
+			log.Warningf("Failed to marshal patch bytes by plugin skip,because of %v", err)
+		} else {
+			return patchBytes, nil
 		}
 	}
 	// no match any one
 	return nil, nil
+}
+
+func mergePatchOperations(operations []utils.PatchOperation) []utils.PatchOperation {
+	mgdOps := make([]utils.PatchOperation, 0)
+	containers := make([]apiv1.Container, 0)
+	for _, op := range operations {
+		if op.Op == "add" && op.Path == "/spec/initContainers" {
+			if l, ok := op.Value.([]apiv1.Container); ok {
+				containers = append(containers, l...)
+			}
+		} else {
+			mgdOps = append(mgdOps, op)
+		}
+	}
+	mgdOps = append(mgdOps, utils.PatchOperation{Op: "add", Path: "/spec/initContainers", Value: containers})
+	return mgdOps
 }
 
 // return singleton

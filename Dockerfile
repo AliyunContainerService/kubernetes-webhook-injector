@@ -1,5 +1,5 @@
 # Build the manager binary
-FROM golang:1.14.2 as builder
+FROM golang:latest as builder
 
 # Copy in the go src
 WORKDIR /go/src/github.com/AliyunContainerService/kubernetes-webhook-injector

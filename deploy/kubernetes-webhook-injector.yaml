@@ -16,7 +16,7 @@ spec:
         app: kubernetes-webhook-injector
     spec:
       containers:
-        - image: registry.aliyuncs.com/ringtail/kubernetes-webhook-injector:v0.0.1-3a24119-aliyun
+        - image: registry.aliyuncs.com/ringtail/kubernetes-webhook-injector:v0.0.1-c335505-aliyun
           imagePullPolicy: Always
           name: kubernetes-webhook-injector
           resources:
@@ -26,15 +26,40 @@ spec:
             requests:
               cpu: 100m
               memory: 100Mi
+          env:
+          - name: REGION_ID
+            # todo use value from values.yaml
+            value: "cn-shenzhen"
+          - name: SG_PLUGIN_IMAGE
+            value: "registry.aliyuncs.com/ringtail/security-group-plugin:v0.0.1-c335505-aliyun"
+          - name: RDS_PLUGIN_IMAGE
+            value: "registry.aliyuncs.com/ringtail/security-group-plugin:v0.0.1-c335505-aliyun"
           volumeMounts:
           - name: webhook-certs
             mountPath: /run/secrets/tls
+          - mountPath: /var/addon
+            name: addon-token
+            readOnly: true
+          - mountPath: /etc/localtime
+            name: localtime
+            readOnly: true
       # todo change service account to kubernetes-webhook-injector as default
       serviceAccountName: admin
       volumes:
         - name: webhook-certs
           secret:
             secretName: kubernetes-webhook-injector-certs
+        - name: addon-token
+          secret:
+            defaultMode: 420
+            items:
+              - key: addon.token.config
+                path: token-config
+            secretName: addon.cms.token
+        - hostPath:
+            path: /etc/localtime
+            type: File
+          name: localtime
 ---
 kind: Service
 apiVersion: v1

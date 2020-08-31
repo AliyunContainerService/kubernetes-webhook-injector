@@ -33,6 +33,9 @@ var (
 var (
 	MutatingWebhookConfigurationName = "kubernetes-webhook-injector"
 	MutatingWebhookConfigurationPath = "/mutate"
+
+	//为了可以让plugin 通过 pkg.ClientSet 来引用k8s api做发送Event等操作
+	ClientSet kubernetes.Interface
 )
 
 func init() {
@@ -119,14 +122,32 @@ func (ws *WebHookServer) mutate(ar *v1beta1.AdmissionReview) *v1beta1.AdmissionR
 
 	raw := req.Object.Raw
 	pod := &v1.Pod{}
-	if err := json.Unmarshal(raw, pod); err != nil {
-		log.Errorf("Failed to unmarshal pod %v,because of %v", raw, err)
-		return &v1beta1.AdmissionResponse{
-			Allowed: true,
+
+	// Create 时才会携带 req.Object.Raw, 否则反序列化会失败
+	if req.Operation == v1beta1.Create {
+		if err := json.Unmarshal(raw, pod); err != nil {
+			log.Errorf("Failed to unmarshal pod %v,because of %v", raw, err)
+			return &v1beta1.AdmissionResponse{
+				Allowed: true,
+			}
 		}
 	}
 
-	patchBytes, err := ws.pluginManager.HandlePatchPod(pod)
+	// 用于在 DELETE 时去删除资源, 感觉这里不太优雅，不同的operation做了不同工作。也许不应该放在这里做区分,应该下沉下去给plugin manager做
+	pod.Namespace = req.Namespace
+	pod.Name = req.Name
+	if req.Operation == v1beta1.Delete {
+		p, err := ws.clientSet.CoreV1().Pods(pod.Namespace).Get(context.Background(), pod.Name, metav1.GetOptions{})
+		if err != nil {
+			log.Errorf("failed to get pod %s from namespace %s ,because of %v", pod.Name, pod.Namespace, err)
+			return &v1beta1.AdmissionResponse{
+				Allowed: true,
+			}
+		}
+		pod = p
+	}
+
+	patchBytes, err := ws.pluginManager.HandlePatchPod(pod, req.Operation)
 	if err != nil {
 		log.Errorf("Failed to patch pod %v,because of %v", pod, err)
 		return &v1beta1.AdmissionResponse{
@@ -158,7 +179,7 @@ func (ws *WebHookServer) registerMutatingWebhookConfiguration() error {
 			// todo create a new one
 			mutatingRules := []mutateV1beta1.RuleWithOperations{
 				{
-					Operations: []mutateV1beta1.OperationType{mutateV1beta1.Create},
+					Operations: []mutateV1beta1.OperationType{mutateV1beta1.Create, mutateV1beta1.Delete},
 					Rule: mutateV1beta1.Rule{
 						APIGroups:   []string{""},
 						APIVersions: []string{"v1"},
@@ -239,14 +260,14 @@ func NewWebHookServer(wo *WebHookOptions) (ws *WebHookServer, err error) {
 		return nil, err
 	}
 
-	clientSet, err := kubernetes.NewForConfig(config)
+	ClientSet, err = kubernetes.NewForConfig(config)
 	if err != nil {
 		log.Errorf("Failed to create clientSet,because of %v", err)
 		return nil, err
 	}
 
 	ws = &WebHookServer{
-		clientSet:     clientSet,
+		clientSet:     ClientSet,
 		Options:       wo,
 		pluginManager: plugins.NewPluginManager(),
 		Server: &http.Server{

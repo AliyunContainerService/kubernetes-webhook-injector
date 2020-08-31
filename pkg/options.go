@@ -60,6 +60,7 @@ func (wo *WebHookOptions) init() {
 	// todo enable leader election to support high performance
 	flag.BoolVar(&wo.LeaderElection, "leaderElection", true, "Enable leaderElection or not.")
 	log.InitFlags(flag.CommandLine)
+
 	flag.Parse()
 }
 
