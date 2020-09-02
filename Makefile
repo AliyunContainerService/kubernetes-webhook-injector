@@ -6,14 +6,14 @@ GIT_COMMIT:=$(shell git rev-parse --short HEAD)
 # Image URL to use all building/pushing image targets
 IMG ?= $(PREFIX)/kubernetes-webhook-injector:$(VERSION)-$(GIT_COMMIT)-aliyun
 SGIMG ?= $(PREFIX)/security-group-plugin:$(VERSION)-$(GIT_COMMIT)-aliyun
-all: test kubernetes-webhook-injector
+all: test build-binary
 
 # Run tests
 test: fmt vet
 	go test ./pkg/... ./plugins/...  -coverprofile cover.out
 
 # Build kubernetes-webhook-injector binary
-kubernetes-webhook-injector: fmt vet
+build-binary:
 	go build -o bin/kubernetes-webhook-injector main.go
 	go build -o bin/security-group-plugin ./plugins/security_group/cmd
 	go build -o bin/rds-whitelist-plugin ./plugins/rds_whitelist/cmd
@@ -31,7 +31,7 @@ vet:
 	go vet ./pkg/... ./plugins/...
 
 # Build the docker image
-docker-build: test
+docker-build:
 	docker build . -t ${IMG} --no-cache
 
 # Push the docker image

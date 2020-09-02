@@ -61,6 +61,7 @@ func (pm *PluginManager) HandlePatchPod(pod *apiv1.Pod, operation v1beta1.Operat
 			return patchBytes, nil
 		}
 	}
+
 	// no match any one
 	return nil, nil
 }

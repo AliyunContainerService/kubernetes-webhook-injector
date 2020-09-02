@@ -1,10 +1,11 @@
-package pkg
+package webhook
 
 import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"github.com/AliyunContainerService/kubernetes-webhook-injector/pkg/k8s"
 	"github.com/AliyunContainerService/kubernetes-webhook-injector/plugins"
 	"io/ioutil"
 	"k8s.io/api/admission/v1beta1"
@@ -15,7 +16,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
 	log "k8s.io/klog"
 	"net/http"
 	"strconv"
@@ -33,9 +33,6 @@ var (
 var (
 	MutatingWebhookConfigurationName = "kubernetes-webhook-injector"
 	MutatingWebhookConfigurationPath = "/mutate"
-
-	//为了可以让plugin 通过 pkg.ClientSet 来引用k8s api做发送Event等操作
-	ClientSet kubernetes.Interface
 )
 
 func init() {
@@ -254,20 +251,13 @@ func NewWebHookServer(wo *WebHookOptions) (ws *WebHookServer, err error) {
 	//	}
 	//}
 
-	config, err := clientcmd.BuildConfigFromFlags("", wo.KubeConf)
-	if err != nil {
-		log.Errorf("Failed to build KubeConf from command line,because of %v", err)
-		return nil, err
-	}
-
-	ClientSet, err = kubernetes.NewForConfig(config)
-	if err != nil {
-		log.Errorf("Failed to create clientSet,because of %v", err)
-		return nil, err
-	}
+	// 这里其实使用的是inClusterConfig:
+	//tokenFile  = "/var/run/secrets/kubernetes.io/serviceaccount/token"
+	//rootCAFile = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+	cs := k8s.GetClientSetOrDie("", wo.KubeConf)
 
 	ws = &WebHookServer{
-		clientSet:     ClientSet,
+		clientSet:     cs,
 		Options:       wo,
 		pluginManager: plugins.NewPluginManager(),
 		Server: &http.Server{

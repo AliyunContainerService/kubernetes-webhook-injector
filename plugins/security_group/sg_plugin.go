@@ -2,6 +2,7 @@ package security_group
 
 import (
 	"fmt"
+	"github.com/AliyunContainerService/kubernetes-webhook-injector/pkg/k8s"
 	"github.com/AliyunContainerService/kubernetes-webhook-injector/pkg/openapi"
 	"github.com/AliyunContainerService/kubernetes-webhook-injector/plugins/utils"
 	"k8s.io/api/admission/v1beta1"
@@ -9,6 +10,7 @@ import (
 	log "k8s.io/klog"
 	"os"
 	"strings"
+	"sync"
 )
 
 const (
@@ -24,6 +26,7 @@ func init() {
 	if image, ok := os.LookupEnv(IMAGE_ENV); ok {
 		InitContainerImage = image
 	}
+
 }
 
 var (
@@ -32,8 +35,10 @@ var (
 	}
 
 	cleaned = make(map[string]bool) //key: sg permission desc
+	checked = make(map[string]bool) //key: pod name
 
 	InitContainerImage string
+	lock               = &sync.Mutex{}
 )
 
 type SecurityGroupPlugin struct {
@@ -42,6 +47,7 @@ type SecurityGroupPlugin struct {
 }
 
 func (s *SecurityGroupPlugin) cleanUp(pod *apiv1.Pod) error {
+	eventor := k8s.GetEventor()
 	//TODO 这部分逻辑可以移到 utils 里
 
 	// 因为sts会更新，所以每次都现取
@@ -52,7 +58,6 @@ func (s *SecurityGroupPlugin) cleanUp(pod *apiv1.Pod) error {
 
 	sgClient, err := openapi.GetSecurityGroupOperator(authInfo)
 	if err != nil {
-		// 打印错误消息，发k8s event
 		log.Fatal(err)
 	}
 	pDesc := pod.Namespace + ":" + pod.Name
@@ -66,20 +71,27 @@ func (s *SecurityGroupPlugin) cleanUp(pod *apiv1.Pod) error {
 	go func() {
 		sgIDs := strings.Split(pod.Annotations[LabelSgID], ",")
 		for _, sgID := range sgIDs {
-			log.Infof("Deleting permission %s of sg %s in region %s\n", pDesc, sgID, openapi.RegionID)
 			p, err := sgClient.FindPermission(sgID, pDesc)
 			if err != nil {
-				log.Fatal(err)
+				log.Infof(err.Error())
+				eventor.SendPodEvent(pod, apiv1.EventTypeWarning, "Deleting", openapi.ParseErrorMessage(err.Error()).Message)
 			}
 			//如果有，先删除
 			if p == nil {
-				log.Infof("WARNING: Cannot find permission %s of sg %s in region %s\n", pDesc, sgID, openapi.RegionID)
+				msg := fmt.Sprintf("Cannot find permission %s of sg %s in region %s\n", pDesc, sgID, openapi.RegionID)
+				log.Infof(msg)
+				eventor.SendPodEvent(pod, apiv1.EventTypeWarning, "Deleting", fmt.Sprintf(msg))
 			} else {
 				err = sgClient.DeletePermission(sgID, p)
 				if err != nil {
-					log.Fatal(err)
+					msg := fmt.Sprintf("failed to remove permission %s of sg %s in region %s %s",
+						pDesc, sgID, openapi.RegionID, openapi.ParseErrorMessage(err.Error()).Message)
+					log.Error(msg)
+					eventor.SendPodEvent(pod, apiv1.EventTypeNormal, "Deleting", msg)
 				}
-				log.Infof("Permission deleted")
+				msg := fmt.Sprintf("Removed permission %s of sg %s in region %s", pDesc, sgID, openapi.RegionID)
+				log.Infof(msg)
+				eventor.SendPodEvent(pod, apiv1.EventTypeNormal, "Deleting", msg)
 			}
 		}
 
@@ -119,8 +131,29 @@ func (s *SecurityGroupPlugin) Patch(pod *apiv1.Pod, operation v1beta1.Operation)
 		}
 		patch := s.patchInitContainer(pod)
 		patches = append(patches, patch)
+		go func() {
+			//todo 查找同命名空间下所有相同 generationName 的Pods，
+			//     for each pod：
+			//          如果不在checked map中，将pod名加入进去, 如果已有，直接跳过
+			//          为每个pod启动一个 goroutine，等待10秒，读取 plugin container的状态，如果异常，发Event
+
+			chPod := k8s.GetPodsByPluginNameCh(k8s.GetClientSet(), pod.Namespace, pod.GenerateName, InitContainerName)
+			for pod := range chPod {
+				if _, ok := checked[pod.Name]; ok {
+					continue
+				}
+				lock.Lock()
+				checked[pod.Name] = true
+				lock.Unlock()
+
+				go k8s.WatchInitContainerStatus(k8s.GetClientSet(), pod, k8s.GetEventor())
+			}
+		}()
 	case v1beta1.Delete:
 		s.cleanUp(pod)
+
+	case v1beta1.Update:
+		log.Infof("Pod %s is updated", pod.Name)
 	}
 
 	return patches
@@ -163,34 +196,3 @@ func (s *SecurityGroupPlugin) patchInitContainer(pod *apiv1.Pod) utils.PatchOper
 func NewSgPlugin() *SecurityGroupPlugin {
 	return &SecurityGroupPlugin{}
 }
-
-//jobsClient := utils.ClientSet.BatchV1().Jobs(pod.Namespace)
-//	job := &batchv1.Job{
-//		ObjectMeta: metav1.ObjectMeta{
-//			Namespace: pod.Namespace,
-//			Name:      pod.Name + "-sg-" + "cleaner",
-//		},
-//		Spec: batchv1.JobSpec{
-//			Template: apiv1.PodTemplateSpec{
-//				Spec: apiv1.PodSpec{
-//					RestartPolicy: apiv1.RestartPolicyOnFailure,
-//					Containers: []apiv1.Container{
-//						{
-//							Name:            InitContainerName,
-//							Image:           s.initImage,
-//							ImagePullPolicy: apiv1.PullAlways,
-//							//Command:         append(s.initCmd, "--delete"),
-//							Env: []apiv1.EnvVar{
-//								{Name: "ACCESS_KEY_ID", Value: s.authInfo.AccessKeyId},
-//								{Name: "ACCESS_KEY_SECRET", Value: s.authInfo.AccessKeySecret},
-//								{Name: "POD_NAME", Value: pod.Name},
-//								{Name: "POD_NAMESPACE", ValueFrom: &apiv1.EnvVarSource{FieldRef: &apiv1.ObjectFieldSelector{FieldPath: "metadata.namespace"}}},
-//								{Name: "REGION_ID", Value: pod.Annotations[LabelRegion]},
-//								{Name: "SECURITY_GROUP_ID", Value: pod.Annotations[LabelSgID]},
-//							},
-//						},
-//					},
-//				},
-//			},
-//		},
-//	}

@@ -14,25 +14,25 @@ limitations under the License.
 package main
 
 import (
-	"github.com/AliyunContainerService/kubernetes-webhook-injector/pkg"
+	"github.com/AliyunContainerService/kubernetes-webhook-injector/pkg/webhook"
 	"log"
 	"net/http"
 )
 
 func main() {
-	var wo *pkg.WebHookOptions
+	var wo *webhook.WebHookOptions
 	var err error
-	if wo, err = pkg.NewWebHookOptions(); err != nil {
+	if wo, err = webhook.NewWebHookOptions(); err != nil {
 		log.Fatalf("Please input valid params. %v", err)
 	}
 
-	ws, err := pkg.NewWebHookServer(wo)
+	ws, err := webhook.NewWebHookServer(wo)
 
 	if err != nil {
 		log.Fatalf("Failed to set up webhook server: %v", err)
 	}
 	mux := http.NewServeMux()
-	mux.HandleFunc(pkg.MutatingWebhookConfigurationPath, ws.Serve)
+	mux.HandleFunc(webhook.MutatingWebhookConfigurationPath, ws.Serve)
 	ws.Server.Handler = mux
 
 	log.Fatal(ws.Run())

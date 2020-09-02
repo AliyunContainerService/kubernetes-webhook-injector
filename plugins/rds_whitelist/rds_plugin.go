@@ -2,6 +2,7 @@ package rds_whitelist
 
 import (
 	"fmt"
+	"github.com/AliyunContainerService/kubernetes-webhook-injector/pkg/k8s"
 	"github.com/AliyunContainerService/kubernetes-webhook-injector/pkg/openapi"
 	"github.com/AliyunContainerService/kubernetes-webhook-injector/plugins/utils"
 	"k8s.io/api/admission/v1beta1"
@@ -121,7 +122,6 @@ func (r *rdsWhiteListPlugin) cleanUp(pod *apiv1.Pod) error {
 
 	rdsClient, err := openapi.GetRdsWhitelistOperator(authInfo)
 	if err != nil {
-		// 打印错误消息，发k8s event
 		log.Fatal(err)
 	}
 	whitelistName := openapi.RefactorRdsWhitelistName(pod.Namespace + "_" + pod.Name)
@@ -135,12 +135,16 @@ func (r *rdsWhiteListPlugin) cleanUp(pod *apiv1.Pod) error {
 		rdsIDs := strings.Split(pod.Annotations[LabelRdsID], ",")
 		for _, rdsId := range rdsIDs {
 
-			log.Infof("Deleting whitelist %s from rds %s\n", whitelistName, rdsId)
 			err := rdsClient.DeleteWhitelist(rdsId, whitelistName)
 			if err != nil {
-				log.Errorf("Failed to delete whitelist %s under rdsid %s due to %v", whitelistName, rdsId, err)
+				msg := fmt.Sprintf("Failed to delete whitelist %s under rds %s due to %v", whitelistName, rdsId, err)
+				log.Error(msg)
+				k8s.GetEventor().SendPodEvent(pod, apiv1.EventTypeWarning, "Deleting", msg)
+				return
 			}
-			log.Infof("Deleted")
+			msg := fmt.Sprintf("removed whitelist %s from rds %s", whitelistName, rdsId)
+			log.Infof(msg)
+			k8s.GetEventor().SendPodEvent(pod, apiv1.EventTypeNormal, "Deleting", msg)
 		}
 	}()
 

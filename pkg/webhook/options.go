@@ -1,4 +1,4 @@
-package pkg
+package webhook
 
 import (
 	"crypto/tls"
