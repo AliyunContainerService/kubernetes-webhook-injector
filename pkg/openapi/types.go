@@ -13,14 +13,6 @@ type AKInfo struct {
 	Keyring         string `json:"keyring"`
 }
 
-//type AK struct {
-//	AccessKeyId     string
-//	AccessKeySecret string
-//}
-//
-//type STS struct {
-//}
-
 type SecurityGroupOperator struct {
 	*ecs.Client
 }

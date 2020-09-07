@@ -21,7 +21,7 @@ var (
 )
 
 func NewPodWatcher(client kubernetes.Interface) *PodWatcher {
-	//client := GetClientSetOrDie(masterUrl, kubeConfigPath)
+	//client := InitClientSetOrDie(masterUrl, kubeConfigPath)
 
 	return &PodWatcher{
 		ClientSet: client,
@@ -29,7 +29,8 @@ func NewPodWatcher(client kubernetes.Interface) *PodWatcher {
 }
 
 //Watch 给定命名空间下，相同generatedName的，具有pluginName名字的init container的Pod的创建操作，用通道返回
-func GetPodsByPluginNameCh(clientSet kubernetes.Interface, namespace, generateName, pluginName string) <-chan *apiv1.Pod {
+func GetPodsByPluginNameCh(namespace, generateName, pluginName string) <-chan *apiv1.Pod {
+	clientSet := GetClientSet()
 	ch := make(chan *apiv1.Pod)
 	watcher, err := clientSet.CoreV1().Pods(namespace).Watch(
 		context.Background(),
@@ -65,26 +66,30 @@ func GetPodsByPluginNameCh(clientSet kubernetes.Interface, namespace, generateNa
 	return ch
 }
 
-func GetPod(cs kubernetes.Interface, namespace, name string) (*apiv1.Pod, error) {
+func GetPod(namespace, name string) (*apiv1.Pod, error) {
+	cs := GetClientSet()
 	return cs.CoreV1().Pods(namespace).Get(context.Background(), name, metav1.GetOptions{})
 }
 
 //跟踪pod的init container的启动情况
-func WatchInitContainerStatus(cs kubernetes.Interface, pod *apiv1.Pod, eventor *Eventor) {
-	for i := 0; i < 3; i++ {
+func WatchInitContainerStatus(pod *apiv1.Pod, containerName string) {
+	for i := 0; i < 12; i++ {
 		time.Sleep(5 * time.Second)
-		currentPod, err := GetPod(cs, pod.Namespace, pod.Name)
+		currentPod, err := GetPod(pod.Namespace, pod.Name)
 		if err != nil {
 			log.Error(fmt.Sprintf("Cannot get pod %s from namespace %s", pod.Name, pod.Namespace))
 			return
 		}
 		for _, status := range currentPod.Status.InitContainerStatuses {
+			if status.Name != containerName {
+				continue
+			}
 			if status.LastTerminationState.Terminated != nil {
 				if status.LastTerminationState.Terminated.ExitCode != 0 {
 					msg := fmt.Sprintf("plugin %s failed in pod %s of namespace %s. %s",
 						status.Name, pod.Name, pod.Namespace, openapi.ParseErrorMessage(status.LastTerminationState.Terminated.Message).Message)
 					log.Error(msg)
-					eventor.SendPodEvent(currentPod, apiv1.EventTypeWarning, "Created", msg)
+					SendPodEvent(currentPod, apiv1.EventTypeWarning, "Created", msg)
 					return
 				}
 			}
@@ -99,22 +104,3 @@ func WatchInitContainerStatus(cs kubernetes.Interface, pod *apiv1.Pod, eventor *
 		}
 	}
 }
-
-//func WatchPod(clientSet kubernetes.Interface, pod *apiv1.Pod) {
-//	watch, err := clientSet.CoreV1().Pods(pod.Namespace).Watch(context.Background(), metav1.ListOptions{})
-//	if err != nil {
-//		log.Fatal(err)
-//	}
-//	go func() {
-//		for event := range watch.ResultChan() {
-//			fmt.Printf("Type: %v\n", event.Type)
-//			p, ok := event.Object.(*apiv1.Pod)
-//			if !ok {
-//				log.Fatal("unexpected type")
-//			}
-//			fmt.Println(p.Status.ContainerStatuses)
-//			fmt.Println(p.Status.Phase)
-//		}
-//	}()
-//	time.Sleep(60 * time.Second)
-//}

@@ -22,6 +22,10 @@ func cacheExpired() bool {
 	if cachedAkInfo == nil {
 		return true
 	}
+	//AK never expires
+	if cachedAkInfo.SecurityToken == "" {
+		return false
+	}
 	t, err := time.Parse(timeLayout, cachedAkInfo.Expiration)
 	if err != nil {
 		log.Errorf(err.Error())
@@ -49,14 +53,14 @@ func GetAuthInfo() (*AKInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	akInfo := Refresh(string(tokenBytes))
+	akInfo := LoadFromSts(string(tokenBytes))
 	cachedAkInfo = &akInfo
 
 	return &akInfo, nil
 }
 
 // following functions are copied from metrics-server
-func Refresh(stsToken string) AKInfo {
+func LoadFromSts(stsToken string) AKInfo {
 	akInfo := AKInfo{}
 	if err := json.Unmarshal([]byte(stsToken), &akInfo); err != nil {
 		log.Fatal(fmt.Sprintf("failed to parse encoded stsToken by error %v\n", err))

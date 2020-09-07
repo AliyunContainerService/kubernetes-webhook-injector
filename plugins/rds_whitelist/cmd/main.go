@@ -1,10 +1,12 @@
 package main
 
 import (
+	"fmt"
 	"github.com/AliyunContainerService/kubernetes-webhook-injector/pkg/openapi"
 	"github.com/AliyunContainerService/kubernetes-webhook-injector/plugins/utils"
 	"github.com/jessevdk/go-flags"
 	"log"
+	"os"
 	"strings"
 )
 
@@ -18,18 +20,26 @@ type Options struct {
 	ToDelete        bool   `long:"delete"`
 }
 
+const terminationLog = "/dev/termination-log"
+
 var (
-	opt       Options
-	rdsClient *openapi.RdsWhitelistOperator
-	rdsIDs    []string
+	opt Options
 )
 
-func init() {
-	_, err := flags.Parse(&opt)
+func main() {
+	msgLog, err := os.Create(terminationLog)
 	if err != nil {
 		log.Fatal(err)
 	}
-	rdsIDs = strings.Split(opt.RdsIDs, ",")
+	defer msgLog.Close()
+	defer msgLog.Sync()
+
+	_, err = flags.Parse(&opt)
+	if err != nil {
+		msgLog.WriteString(err.Error())
+		log.Fatal(err)
+	}
+	rdsIDs := strings.Split(opt.RdsIDs, ",")
 	opt.WhiteListName = openapi.RefactorRdsWhitelistName(opt.WhiteListName)
 
 	authInfo := &openapi.AKInfo{
@@ -38,35 +48,33 @@ func init() {
 		SecurityToken:   opt.StsToken,
 	}
 
-	rdsClient, err = openapi.GetRdsWhitelistOperator(authInfo)
+	rdsClient, err := openapi.GetRdsWhitelistOperator(authInfo)
 	if err != nil {
+		msgLog.WriteString(err.Error())
 		log.Fatal(err)
 	}
-}
-
-func main() {
 	for _, rdsId := range rdsIDs {
 		if opt.ToDelete {
-			log.Printf("Deleting whitelist %s from rds %s\n", opt.WhiteListName, rdsId)
 			err := rdsClient.DeleteWhitelist(rdsId, opt.WhiteListName)
 			if err != nil {
 				log.Fatalf("Failed to delete whitelist %s under rdsid %s due to %v", opt.WhiteListName, rdsId, err)
 			}
-			log.Println("Deleted")
-
+			log.Printf("Removed whitelist %s from rds %s\n", opt.WhiteListName, rdsId)
 		} else {
-			log.Printf("Creating whitelist %s to rds %s\n", opt.WhiteListName, rdsId)
 			podExternalIP, err := utils.ExternalIP()
 			if err != nil {
-				log.Fatalf("Failed to get pod's IP due to %v", err)
+				msg := fmt.Sprintf("Failed to get pod's IP due to %v", err)
+				msgLog.WriteString(msg)
+				log.Fatalf(msg)
 			}
 
 			err = rdsClient.CreateWhitelist(rdsId, podExternalIP, opt.WhiteListName)
 			if err != nil {
-				log.Fatalf("Failed to create whitelist %s under rdsid %s due to %v", opt.WhiteListName, rdsId, err)
+				msg := fmt.Sprintf("Failed to create whitelist %s under rdsid %s due to %v", opt.WhiteListName, rdsId, err)
+				msgLog.WriteString(msg)
+				log.Fatal(msg)
 			}
-			log.Println("Created")
-
+			log.Printf("Created whitelist %s to rds %s\n", opt.WhiteListName, rdsId)
 		}
 	}
 }

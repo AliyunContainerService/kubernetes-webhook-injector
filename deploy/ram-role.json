@@ -1,0 +1,18 @@
+{
+  "Version": "1",
+  "Statement": [
+    {
+      "Action": [
+        "ecs:DescribeSecurityGroupAttribute",
+        "ecs:AutherizeSecurityGroup",
+        "ecs:RevokeSecurityGroup",
+        "rds:ModifySecurityIps",
+        "rds:DescribeDBInstanceIPArrayList"
+      ],
+      "Resource": [
+        "*"
+      ],
+      "Effect": "Allow"
+    }
+  ]
+}

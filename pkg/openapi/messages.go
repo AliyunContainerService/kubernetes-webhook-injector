@@ -28,5 +28,9 @@ func ParseErrorMessage(s string) (msg ErrorMessage) {
 			msg.Message = line
 		}
 	}
+
+	if msg.Message == "" {
+		msg.Message = s
+	}
 	return
 }

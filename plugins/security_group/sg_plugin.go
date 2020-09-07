@@ -26,7 +26,6 @@ func init() {
 	if image, ok := os.LookupEnv(IMAGE_ENV); ok {
 		InitContainerImage = image
 	}
-
 }
 
 var (
@@ -47,7 +46,6 @@ type SecurityGroupPlugin struct {
 }
 
 func (s *SecurityGroupPlugin) cleanUp(pod *apiv1.Pod) error {
-	eventor := k8s.GetEventor()
 	//TODO 这部分逻辑可以移到 utils 里
 
 	// 因为sts会更新，所以每次都现取
@@ -73,28 +71,30 @@ func (s *SecurityGroupPlugin) cleanUp(pod *apiv1.Pod) error {
 		for _, sgID := range sgIDs {
 			p, err := sgClient.FindPermission(sgID, pDesc)
 			if err != nil {
-				log.Infof(err.Error())
-				eventor.SendPodEvent(pod, apiv1.EventTypeWarning, "Deleting", openapi.ParseErrorMessage(err.Error()).Message)
+				openapiMsg := openapi.ParseErrorMessage(err.Error()).Message
+				eventMsg := fmt.Sprintf("Failed to find security group with ID %s %s", sgID, openapiMsg)
+				log.Infof(eventMsg)
+				k8s.SendPodEvent(pod, apiv1.EventTypeWarning, "Deleting", eventMsg)
+				continue
 			}
 			//如果有，先删除
 			if p == nil {
 				msg := fmt.Sprintf("Cannot find permission %s of sg %s in region %s\n", pDesc, sgID, openapi.RegionID)
 				log.Infof(msg)
-				eventor.SendPodEvent(pod, apiv1.EventTypeWarning, "Deleting", fmt.Sprintf(msg))
+				k8s.SendPodEvent(pod, apiv1.EventTypeWarning, "Deleting", fmt.Sprintf(msg))
 			} else {
 				err = sgClient.DeletePermission(sgID, p)
 				if err != nil {
 					msg := fmt.Sprintf("failed to remove permission %s of sg %s in region %s %s",
 						pDesc, sgID, openapi.RegionID, openapi.ParseErrorMessage(err.Error()).Message)
 					log.Error(msg)
-					eventor.SendPodEvent(pod, apiv1.EventTypeNormal, "Deleting", msg)
+					k8s.SendPodEvent(pod, apiv1.EventTypeNormal, "Deleting", msg)
 				}
 				msg := fmt.Sprintf("Removed permission %s of sg %s in region %s", pDesc, sgID, openapi.RegionID)
 				log.Infof(msg)
-				eventor.SendPodEvent(pod, apiv1.EventTypeNormal, "Deleting", msg)
+				k8s.SendPodEvent(pod, apiv1.EventTypeNormal, "Deleting", msg)
 			}
 		}
-
 	}()
 	return nil
 }
@@ -137,7 +137,7 @@ func (s *SecurityGroupPlugin) Patch(pod *apiv1.Pod, operation v1beta1.Operation)
 			//          如果不在checked map中，将pod名加入进去, 如果已有，直接跳过
 			//          为每个pod启动一个 goroutine，等待10秒，读取 plugin container的状态，如果异常，发Event
 
-			chPod := k8s.GetPodsByPluginNameCh(k8s.GetClientSet(), pod.Namespace, pod.GenerateName, InitContainerName)
+			chPod := k8s.GetPodsByPluginNameCh(pod.Namespace, pod.GenerateName, InitContainerName)
 			for pod := range chPod {
 				if _, ok := checked[pod.Name]; ok {
 					continue
@@ -146,7 +146,7 @@ func (s *SecurityGroupPlugin) Patch(pod *apiv1.Pod, operation v1beta1.Operation)
 				checked[pod.Name] = true
 				lock.Unlock()
 
-				go k8s.WatchInitContainerStatus(k8s.GetClientSet(), pod, k8s.GetEventor())
+				go k8s.WatchInitContainerStatus(pod, InitContainerName)
 			}
 		}()
 	case v1beta1.Delete:

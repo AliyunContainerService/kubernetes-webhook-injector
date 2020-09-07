@@ -10,6 +10,7 @@ import (
 	log "k8s.io/klog"
 	"os"
 	"strings"
+	"sync"
 )
 
 const (
@@ -33,8 +34,11 @@ var (
 	}
 
 	cleaned = make(map[string]bool) //key: white list name
+	checked = make(map[string]bool) //key: pod name 防止Pod中 init 容器被反复检查状态
 
 	InitContainerImage string
+
+	lock = &sync.Mutex{}
 )
 
 type rdsWhiteListPlugin struct {
@@ -73,6 +77,20 @@ func (r *rdsWhiteListPlugin) Patch(pod *apiv1.Pod, operation v1beta1.Operation) 
 
 		patch := r.patchInitContainer(pod)
 		opPatches = append(opPatches, patch)
+		go func() {
+			// 获取相同命名空间下，Generate名相同，并且有rds-plugin为名字的init容器
+			chPod := k8s.GetPodsByPluginNameCh(pod.Namespace, pod.GenerateName, InitContainerName)
+			for pod := range chPod {
+				if _, ok := checked[pod.Name]; ok {
+					continue
+				}
+				lock.Lock()
+				checked[pod.Name] = true
+				lock.Unlock()
+
+				go k8s.WatchInitContainerStatus(pod, InitContainerName)
+			}
+		}()
 	case v1beta1.Delete:
 		r.cleanUp(pod)
 	}
@@ -137,14 +155,15 @@ func (r *rdsWhiteListPlugin) cleanUp(pod *apiv1.Pod) error {
 
 			err := rdsClient.DeleteWhitelist(rdsId, whitelistName)
 			if err != nil {
-				msg := fmt.Sprintf("Failed to delete whitelist %s under rds %s due to %v", whitelistName, rdsId, err)
+				msg := fmt.Sprintf("Failed to delete whitelist %s under rds %s %s",
+					whitelistName, rdsId, openapi.ParseErrorMessage(err.Error()).Message)
 				log.Error(msg)
-				k8s.GetEventor().SendPodEvent(pod, apiv1.EventTypeWarning, "Deleting", msg)
+				k8s.SendPodEvent(pod, apiv1.EventTypeWarning, "Deleting", msg)
 				return
 			}
 			msg := fmt.Sprintf("removed whitelist %s from rds %s", whitelistName, rdsId)
 			log.Infof(msg)
-			k8s.GetEventor().SendPodEvent(pod, apiv1.EventTypeNormal, "Deleting", msg)
+			k8s.SendPodEvent(pod, apiv1.EventTypeNormal, "Deleting", msg)
 		}
 	}()
 

@@ -36,7 +36,8 @@ func newEventRecorder(clientSet kubernetes.Interface) record.EventRecorder {
 	return recorder
 }
 
-func (e *Eventor) SendPodEvent(pod *apiv1.Pod, eventType, reason, message string) {
+func SendPodEvent(pod *apiv1.Pod, eventType, reason, message string) {
+	e := GetEventor()
 	ref, err := reference.GetReference(scheme.Scheme, pod)
 	if err != nil {
 		log.Errorf("Failed to get object reference of pod %s: %v", pod.Name, err)

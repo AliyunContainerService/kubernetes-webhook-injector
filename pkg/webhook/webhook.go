@@ -254,10 +254,10 @@ func NewWebHookServer(wo *WebHookOptions) (ws *WebHookServer, err error) {
 	// 这里其实使用的是inClusterConfig:
 	//tokenFile  = "/var/run/secrets/kubernetes.io/serviceaccount/token"
 	//rootCAFile = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
-	cs := k8s.GetClientSetOrDie("", wo.KubeConf)
+	k8s.InitClientSetOrDie("", wo.KubeConf)
 
 	ws = &WebHookServer{
-		clientSet:     cs,
+		clientSet:     k8s.GetClientSet(),
 		Options:       wo,
 		pluginManager: plugins.NewPluginManager(),
 		Server: &http.Server{

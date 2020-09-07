@@ -11,16 +11,13 @@ var (
 	generationName = "inject-test-649b599897-"
 )
 
-func ini() {
-}
-
 func TestPodWatcher_WatchPlugin(t *testing.T) {
 	if _, isLocalTest := os.LookupEnv("LocalTestEnv"); !isLocalTest {
 		t.SkipNow()
 	}
-	cs := GetClientSetOrDie("", "/Users/ruijzhan/.kube/config")
+	InitClientSetOrDie("", "/Users/ruijzhan/.kube/config")
 
-	ch := GetPodsByPluginNameCh(cs, ns, generationName, "sg-plugin")
+	ch := GetPodsByPluginNameCh(ns, generationName, "sg-plugin")
 	for pod := range ch {
 		fmt.Println(pod.Name)
 	}
@@ -31,13 +28,12 @@ func TestWatchInitContainerStatus(t *testing.T) {
 	}
 
 	ns := "mutating-inject"
-	generationName := "inject-test-649b599897-"
-	pluginName := "sg-plugin"
+	generationName := "inject-test-569444f459-"
+	pluginName := "rds-plugin"
 
-	cs := GetClientSetOrDie("", "/Users/ruijzhan/.kube/config")
-	evtor := NewEventor(cs)
-	ch := GetPodsByPluginNameCh(cs, ns, generationName, pluginName)
+	InitClientSetOrDie("", "/Users/ruijzhan/.kube/config")
+	ch := GetPodsByPluginNameCh(ns, generationName, pluginName)
 	for pod := range ch {
-		WatchInitContainerStatus(cs, pod, evtor)
+		WatchInitContainerStatus(pod, pluginName)
 	}
 }

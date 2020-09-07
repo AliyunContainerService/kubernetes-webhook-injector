@@ -13,7 +13,7 @@ var token = `{"access.key.id":"7657sVLqCXgvd/kgDoJKc3Ahun3KOnPOihW3AE4qKVTN9uD8H
 
 func TestExpiration(t *testing.T) {
 	assert.True(t, cacheExpired())
-	akInfo := Refresh(token)
+	akInfo := LoadFromSts(token)
 	cachedAkInfo = &akInfo
 	assert.False(t, cacheExpired())
 }

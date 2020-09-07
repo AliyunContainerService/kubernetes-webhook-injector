@@ -3,7 +3,7 @@ package k8s
 import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
-	"log"
+	log "k8s.io/klog"
 )
 
 var (
@@ -11,7 +11,7 @@ var (
 	eventer   *Eventor
 )
 
-func GetClientSetOrDie(masterUrl, kubeConfigPath string) kubernetes.Interface {
+func InitClientSetOrDie(masterUrl, kubeConfigPath string) {
 	config, err := clientcmd.BuildConfigFromFlags(masterUrl, kubeConfigPath)
 	if err != nil {
 		log.Fatal(err)
@@ -21,11 +21,11 @@ func GetClientSetOrDie(masterUrl, kubeConfigPath string) kubernetes.Interface {
 	if err != nil {
 		log.Fatal(err)
 	}
-	return cs
+	clientSet = cs
 }
 func GetClientSet() kubernetes.Interface {
 	if clientSet == nil {
-		clientSet = GetClientSetOrDie("", "")
+		log.Fatal("Call InitClientSetOrDie to initialize clientSet first")
 	}
 	return clientSet
 }

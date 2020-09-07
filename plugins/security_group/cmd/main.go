@@ -24,9 +24,7 @@ type Options struct {
 const terminationLog = "/dev/termination-log"
 
 var (
-	opt      Options
-	sgClient *openapi.SecurityGroupOperator
-	sgIDs    []string
+	opt Options
 )
 
 func main() {
@@ -42,7 +40,7 @@ func main() {
 		msgLog.WriteString(err.Error())
 		log.Fatal(err)
 	}
-	sgIDs = strings.Split(opt.SecurityGroupIDs, ",")
+	sgIDs := strings.Split(opt.SecurityGroupIDs, ",")
 
 	authInfo := &openapi.AKInfo{
 		AccessKeyId:     opt.AccessKeyID,
@@ -50,7 +48,7 @@ func main() {
 		SecurityToken:   opt.StsToken,
 	}
 
-	sgClient, err = openapi.GetSecurityGroupOperator(authInfo)
+	sgClient, err := openapi.GetSecurityGroupOperator(authInfo)
 	if err != nil {
 		msgLog.WriteString(err.Error())
 		log.Fatal(err)
