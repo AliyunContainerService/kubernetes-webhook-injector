@@ -5,7 +5,7 @@ FROM golang:latest as builder
 WORKDIR /go/src/github.com/AliyunContainerService/kubernetes-webhook-injector
 COPY ./ /go/src/github.com/AliyunContainerService/kubernetes-webhook-injector
 # Build
-RUN go env -w GOPROXY=https://mirrors.aliyun.com/goproxy/ && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 make
+RUN go env -w GOPROXY=https://mirrors.aliyun.com/goproxy/ && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 make build-binary
 
 # Copy the controller-manager into a thin image
 FROM alpine:3.12.0

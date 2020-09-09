@@ -44,6 +44,14 @@ func GetAuthInfo() (*AKInfo, error) {
 		return cachedAkInfo, nil
 	}
 
+	if _, ok := os.LookupEnv("USE_AKSK"); ok {
+		cachedAkInfo = &AKInfo{
+			AccessKeyId:     os.Getenv("AK"),
+			AccessKeySecret: os.Getenv("SK"),
+		}
+		return cachedAkInfo, nil
+	}
+
 	f, err := os.Open(tokenConfigPath)
 	if err != nil {
 		return nil, err
