@@ -11,6 +11,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"time"
 )
 
 const (
@@ -88,7 +89,23 @@ func (r *rdsWhiteListPlugin) Patch(pod *apiv1.Pod, operation v1beta1.Operation) 
 				checked[pod.Name] = true
 				lock.Unlock()
 
-				go k8s.WatchInitContainerStatus(pod, InitContainerName)
+				ch := make(chan k8s.ContainerExitStatus, 1)
+				go k8s.WatchInitContainerStatus2(pod, InitContainerName, ch)
+
+				select {
+				case status := <-ch:
+					if !status.Success {
+						log.Error(status.Message)
+						if status.Pod != nil {
+							rdsId := pod.Annotations[LabelRdsID]
+							k8s.SendPodEvent(status.Pod, apiv1.EventTypeWarning, "Created", status.Message+" rdsId: "+rdsId)
+						}
+					} else {
+						log.Info(status.Message)
+					}
+				case <-time.After(70 * time.Second):
+					log.Error("Plugin execution times out, please check pod status manually")
+				}
 			}
 		}()
 	case v1beta1.Delete:

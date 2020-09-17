@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"testing"
+	"time"
 )
 
 var (
@@ -34,6 +35,13 @@ func TestWatchInitContainerStatus(t *testing.T) {
 	InitClientSetOrDie("", "/Users/ruijzhan/.kube/config")
 	ch := GetPodsByPluginNameCh(ns, generationName, pluginName)
 	for pod := range ch {
-		WatchInitContainerStatus(pod, pluginName)
+		ch2 := make(chan ContainerExitStatus, 1)
+		WatchInitContainerStatus2(pod, pluginName, ch2)
+		select {
+		case s := <-ch2:
+			t.Log(s.Message)
+		case <-time.After(70 * time.Second):
+			t.Fatal("Timeout")
+		}
 	}
 }

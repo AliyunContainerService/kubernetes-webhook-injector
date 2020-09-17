@@ -1,7 +1,9 @@
 package openapi
 
 import (
+	"fmt"
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk"
+	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/endpoints"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/rds"
 	"log"
@@ -18,6 +20,9 @@ func init() {
 		log.Println("env REGION_ID is not set")
 	}
 	RegionID = r
+
+	endpoints.AddEndpointMapping(RegionID, "Ecs", fmt.Sprintf("ecs-vpc.%s.aliyuncs.com", RegionID))
+	endpoints.AddEndpointMapping(RegionID, "Rds", fmt.Sprintf("rds-vpc.%s.aliyuncs.com", RegionID))
 }
 
 func getSDKClient(authInfo *AKInfo) (*sdk.Client, error) {
