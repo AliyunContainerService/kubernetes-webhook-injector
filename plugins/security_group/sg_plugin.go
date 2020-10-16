@@ -42,8 +42,6 @@ var (
 )
 
 type SecurityGroupPlugin struct {
-	//initImage string
-	//authInfo openapi.AKInfo
 }
 
 func (s *SecurityGroupPlugin) cleanUp(pod *apiv1.Pod) error {
