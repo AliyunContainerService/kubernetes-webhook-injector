@@ -3,7 +3,6 @@ package openapi
 import (
 	"fmt"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/rds"
-	"strings"
 )
 
 func (r *RdsWhitelistOperator) Whitelists(rdsId string) ([]rds.DBInstanceIPArray, error) {
@@ -26,8 +25,14 @@ func (r *RdsWhitelistOperator) CreateWhitelist(rdsId, podIP, whitelistName strin
 	req.DBInstanceId = rdsId
 	req.SecurityIPType = "ipv4"
 	req.WhitelistNetworkType = "vpc"
-	req.DBInstanceIPArrayName = whitelistName
 	req.SecurityIps = podIP
+	req.ModifyMode = "Append"
+
+	if whitelistName == "" {
+		req.DBInstanceIPArrayName = "Default"
+	} else {
+		req.DBInstanceIPArrayName = whitelistName
+	}
 
 	_, err := r.ModifySecurityIps(req)
 
@@ -64,23 +69,30 @@ func (r *RdsWhitelistOperator) DeleteWhitelist(rdsId, whitelistName string) erro
 	req := rds.CreateModifySecurityIpsRequest()
 	req.RegionId = RegionID
 	req.DBInstanceId = rdsId
-	req.DBInstanceIPArrayName = whitelistName
 	req.SecurityIps = list.SecurityIPList
 	req.WhitelistNetworkType = list.WhitelistNetworkType
 	req.ModifyMode = "Delete"
+
+	if whitelistName == "" {
+		req.DBInstanceIPArrayName = "Default"
+	} else {
+		req.DBInstanceIPArrayName = whitelistName
+	}
 
 	_, err = r.ModifySecurityIps(req)
 	return err
 }
 
-func RefactorRdsWhitelistName(name string) string {
-	//rds对白名单名字的要求：由小写字母、数字、下划线组成，以小写字母开头，以字母或数字结尾。长度为2-32个字符
-	newName := strings.ReplaceAll(name, "-", "_")
-	if len(newName) > 32 {
-		newName = newName[len(newName)-32:]
-	}
-	if strings.HasPrefix(newName, "_") {
-		newName = newName[1:]
-	}
-	return newName
-}
+//func RefactorRdsWhitelistName(name string) string {
+//	//rds对白名单名字的要求：由小写字母、数字、下划线组成，以小写字母开头，以字母或数字结尾。长度为2-32个字符
+//	newName := strings.ReplaceAll(name, "-", "_")
+//	if len(newName) > 32 {
+//		newName = newName[len(newName)-32:]
+//	}
+//	if strings.HasPrefix(newName, "_") {
+//		newName = newName[1:]
+//	}
+//
+//	newName = "a" + newName[1:]
+//	return newName
+//}

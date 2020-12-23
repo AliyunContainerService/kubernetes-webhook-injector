@@ -15,8 +15,9 @@ import (
 )
 
 const (
-	PluginName = "RDSWhiteListPlugin"
-	LabelRdsID = "ack.aliyun.com/rds_id"
+	PluginName         = "RDSWhiteListPlugin"
+	LabelRdsID         = "ack.aliyun.com/rds_id"
+	LabelWhiteListName = "ack.aliyun.com/white_list_name"
 
 	InitContainerName    = "rds-plugin"
 	AddWlstCommandTemplt = "/root/rds-whitelist-plugin --region_id %s --rds_id %s --white_list_name %s --access_key_id %s --access_key_secret %s --sts_token %s"
@@ -122,6 +123,8 @@ func (r *rdsWhiteListPlugin) patchInitContainer(pod *apiv1.Pod) utils.PatchOpera
 
 	regionId := openapi.RegionID
 	rdsId := pod.Annotations[LabelRdsID]
+	whiteListName := pod.Annotations[LabelWhiteListName]
+
 	akId := authInfo.AccessKeyId
 	akSecrt := authInfo.AccessKeySecret
 	stsToken := authInfo.SecurityToken
@@ -133,7 +136,7 @@ func (r *rdsWhiteListPlugin) patchInitContainer(pod *apiv1.Pod) utils.PatchOpera
 	}
 
 	con.Command = strings.Split(
-		fmt.Sprintf(AddWlstCommandTemplt, regionId, rdsId, "$(POD_NAMESPACE)_$(POD_NAME)", akId, akSecrt, stsToken), " ")
+		fmt.Sprintf(AddWlstCommandTemplt, regionId, rdsId, whiteListName, akId, akSecrt, stsToken), " ")
 
 	con.Env = []apiv1.EnvVar{
 		{Name: "POD_NAME", ValueFrom: &apiv1.EnvVarSource{FieldRef: &apiv1.ObjectFieldSelector{FieldPath: "metadata.name"}}},
@@ -159,7 +162,8 @@ func (r *rdsWhiteListPlugin) cleanUp(pod *apiv1.Pod) error {
 	if err != nil {
 		log.Fatal(err)
 	}
-	whitelistName := openapi.RefactorRdsWhitelistName(pod.Namespace + "_" + pod.Name)
+
+	whitelistName := pod.Annotations[LabelWhiteListName]
 	//删除Pod时，webhook会触发3次
 	if cleaned[whitelistName] {
 		return nil

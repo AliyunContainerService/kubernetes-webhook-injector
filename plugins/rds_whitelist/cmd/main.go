@@ -11,13 +11,13 @@ import (
 )
 
 type Options struct {
-	RdsIDs          string `long:"rds_id" required:"true"`
-	RegionId        string `long:"region_id" required:"true"`
-	WhiteListName   string `long:"white_list_name" required:"true"`
-	AccessKeyID     string `long:"access_key_id" required:"true"`
-	AccessKeySecret string `long:"access_key_secret" required:"true"`
-	StsToken        string `long:"sts_token"`
-	ToDelete        bool   `long:"delete"`
+	RdsIDs           string `long:"rds_id" required:"true"`
+	RegionId         string `long:"region_id" required:"true"`
+	WhiteListName    string `long:"white_list_name" required:"true"`
+	AccessKeyID      string `long:"access_key_id" required:"true"`
+	AccessKeySecret  string `long:"access_key_secret" required:"true"`
+	StsToken         string `long:"sts_token"`
+	ToDelete         bool   `long:"delete"`
 }
 
 const terminationLog = "/dev/termination-log"
@@ -40,7 +40,6 @@ func main() {
 		log.Fatal(err)
 	}
 	rdsIDs := strings.Split(opt.RdsIDs, ",")
-	opt.WhiteListName = openapi.RefactorRdsWhitelistName(opt.WhiteListName)
 
 	authInfo := &openapi.AKInfo{
 		AccessKeyId:     opt.AccessKeyID,
@@ -54,7 +53,7 @@ func main() {
 		log.Fatal(err)
 	}
 	for _, rdsId := range rdsIDs {
-		if opt.ToDelete {
+		if opt.ToDelete  {
 			err := rdsClient.DeleteWhitelist(rdsId, opt.WhiteListName)
 			if err != nil {
 				log.Fatalf("Failed to delete whitelist %s under rdsid %s due to %v", opt.WhiteListName, rdsId, err)
