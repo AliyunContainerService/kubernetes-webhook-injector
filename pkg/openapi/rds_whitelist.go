@@ -29,7 +29,7 @@ func (r *RdsWhitelistOperator) CreateWhitelist(rdsId, podIP, whitelistName strin
 	req.ModifyMode = "Append"
 
 	if whitelistName == "" {
-		req.DBInstanceIPArrayName = "Default"
+		req.DBInstanceIPArrayName = "default"
 	} else {
 		req.DBInstanceIPArrayName = whitelistName
 	}
@@ -74,7 +74,7 @@ func (r *RdsWhitelistOperator) DeleteWhitelist(rdsId, whitelistName string) erro
 	req.ModifyMode = "Delete"
 
 	if whitelistName == "" {
-		req.DBInstanceIPArrayName = "Default"
+		req.DBInstanceIPArrayName = "default"
 	} else {
 		req.DBInstanceIPArrayName = whitelistName
 	}
