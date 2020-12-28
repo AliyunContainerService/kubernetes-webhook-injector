@@ -35,7 +35,7 @@ var (
 		LabelRdsID: "*",
 	}
 
-	cleaned = make(map[string]bool) //key: white list name
+	//cleaned = make(map[string]bool) //key: white list name
 	checked = make(map[string]bool) //key: pod name 防止Pod中 init 容器被反复检查状态
 
 	InitContainerImage string
@@ -165,24 +165,23 @@ func (r *rdsWhiteListPlugin) cleanUp(pod *apiv1.Pod) error {
 
 	whitelistName := pod.Annotations[LabelWhiteListName]
 	//删除Pod时，webhook会触发3次
-	if cleaned[whitelistName] {
-		return nil
-	}
-	cleaned[whitelistName] = true
+	//if cleaned[whitelistName] {
+	//	return nil
+	//}
+	//cleaned[whitelistName] = true
 
 	go func() {
 		rdsIDs := strings.Split(pod.Annotations[LabelRdsID], ",")
 		for _, rdsId := range rdsIDs {
-
-			err := rdsClient.DeleteWhitelist(rdsId, whitelistName)
+			err := rdsClient.DeleteWhitelist(rdsId, whitelistName, pod.Status.PodIP)
 			if err != nil {
-				msg := fmt.Sprintf("Failed to delete whitelist %s under rds %s %s",
-					whitelistName, rdsId, openapi.ParseErrorMessage(err.Error()).Message)
+				msg := fmt.Sprintf("Failed to delete %v from whitelist %s under rds %s %s",
+					pod.Status.PodIP, whitelistName, rdsId, openapi.ParseErrorMessage(err.Error()).Message)
 				log.Error(msg)
 				k8s.SendPodEvent(pod, apiv1.EventTypeWarning, "Deleting", msg)
 				return
 			}
-			msg := fmt.Sprintf("removed whitelist %s from rds %s", whitelistName, rdsId)
+			msg := fmt.Sprintf("removed %v from whitelist %s in rds %s", pod.Status.PodIP, whitelistName, rdsId)
 			log.Infof(msg)
 			k8s.SendPodEvent(pod, apiv1.EventTypeNormal, "Deleting", msg)
 		}

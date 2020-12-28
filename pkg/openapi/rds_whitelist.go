@@ -55,7 +55,7 @@ func (r *RdsWhitelistOperator) GetWhitelist(rdsId, whitelistName string) (*rds.D
 	return nil, nil
 }
 
-func (r *RdsWhitelistOperator) DeleteWhitelist(rdsId, whitelistName string) error {
+func (r *RdsWhitelistOperator) DeleteWhitelist(rdsId, whitelistName, podIP string) error {
 
 	list, err := r.GetWhitelist(rdsId, whitelistName)
 	if err != nil {
@@ -70,6 +70,7 @@ func (r *RdsWhitelistOperator) DeleteWhitelist(rdsId, whitelistName string) erro
 	req.RegionId = RegionID
 	req.DBInstanceId = rdsId
 	req.SecurityIps = list.SecurityIPList
+	req.SecurityIps = podIP
 	req.WhitelistNetworkType = list.WhitelistNetworkType
 	req.ModifyMode = "Delete"
 
