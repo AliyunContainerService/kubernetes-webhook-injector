@@ -25,6 +25,7 @@ func (r *RdsWhitelistOperator) CreateWhitelist(rdsId, podIP, whitelistName strin
 	req.DBInstanceId = rdsId
 	req.SecurityIPType = "ipv4"
 	req.SecurityIps = podIP
+	req.WhitelistNetworkType = "MIX"
 	req.ModifyMode = "Append"
 
 	if whitelistName == "" {
@@ -69,6 +70,7 @@ func (r *RdsWhitelistOperator) DeleteWhitelist(rdsId, whitelistName, podIP strin
 	req.RegionId = RegionID
 	req.DBInstanceId = rdsId
 	req.SecurityIps = list.SecurityIPList
+	req.WhitelistNetworkType = list.WhitelistNetworkType
 	req.SecurityIps = podIP
 	req.ModifyMode = "Delete"
 
