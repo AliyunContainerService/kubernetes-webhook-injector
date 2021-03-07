@@ -19,6 +19,9 @@ build-binary:
 build-plugins:
 	go build -o bin/security-group-plugin ./plugins/security_group/cmd
 	go build -o bin/rds-whitelist-plugin ./plugins/rds_whitelist/cmd
+	go build -o bin/redis-whitelist-plugin ./plugins/redis_whitelist/cmd
+	go build -o bin/slb-access-control-plugin ./plugins/slb_access_control_policy/cmd
+
 
 # Run against the configured Kubernetes cluster in ~/.kube/config
 run: fmt vet

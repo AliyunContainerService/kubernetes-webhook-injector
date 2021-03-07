@@ -2,7 +2,9 @@ package openapi
 
 import (
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
+	"github.com/aliyun/alibaba-cloud-sdk-go/services/r-kvstore"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/rds"
+	"github.com/aliyun/alibaba-cloud-sdk-go/services/slb"
 )
 
 type AKInfo struct {
@@ -19,4 +21,12 @@ type SecurityGroupOperator struct {
 
 type RdsWhitelistOperator struct {
 	*rds.Client
+}
+
+type RedisWhitelistOperator struct {
+	*r_kvstore.Client
+}
+
+type SLBAccessControlPolicyOperator struct {
+	*slb.Client
 }

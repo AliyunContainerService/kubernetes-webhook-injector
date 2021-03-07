@@ -6,7 +6,9 @@ import (
 	"github.com/AliyunContainerService/kubernetes-webhook-injector/pkg/openapi"
 	"github.com/AliyunContainerService/kubernetes-webhook-injector/plugins/mock"
 	"github.com/AliyunContainerService/kubernetes-webhook-injector/plugins/rds_whitelist"
+	"github.com/AliyunContainerService/kubernetes-webhook-injector/plugins/redis_whitelist"
 	"github.com/AliyunContainerService/kubernetes-webhook-injector/plugins/security_group"
+	"github.com/AliyunContainerService/kubernetes-webhook-injector/plugins/slb_access_control_policy"
 	"github.com/AliyunContainerService/kubernetes-webhook-injector/plugins/utils"
 	"k8s.io/api/admission/v1beta1"
 	apiv1 "k8s.io/api/core/v1"
@@ -27,6 +29,8 @@ func init() {
 	pluginManagerSingleton.register(mock.NewMockPlugin())
 	pluginManagerSingleton.register(security_group.NewSgPlugin())
 	pluginManagerSingleton.register(rds_whitelist.NewRdsPlugin())
+	pluginManagerSingleton.register(redis_whitelist.NewRedisPlugin())
+	pluginManagerSingleton.register(slb_access_control_policy.NewSLBPlugin())
 }
 
 type PluginManager struct {
