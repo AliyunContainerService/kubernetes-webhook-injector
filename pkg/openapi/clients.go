@@ -18,14 +18,30 @@ var (
 )
 
 func init() {
+	PrivateRegion := []string{"cn-qingdao", "cn-beijing", "cn-hangzhou", "cn-shanghai", "cn-shenzhen", "cn-hongkong", "ap-southeast-1", "us-east-1", "us-west-1", "cn-shanghai-finance-1"}
+	SpecialRegion := []string{"cn-heyuan", "cn-hangzhou-finance", "cn-shenzhen-finance-1"}
+
 	r, ok := os.LookupEnv("REGION_ID")
 	if !ok {
 		log.Println("env REGION_ID is not set")
 	}
 	RegionID = r
 
+	endpoints.AddEndpointMapping(RegionID, "Rds", fmt.Sprintf("rds.%s.aliyuncs.com", RegionID))
+
+	for _, pr := range PrivateRegion {
+		if RegionID == pr {
+			endpoints.AddEndpointMapping(RegionID, "Rds", fmt.Sprintf("rds-vpc.%s.aliyuncs.com", RegionID))
+		}
+	}
+
+	for _, sr := range SpecialRegion {
+		if RegionID == sr {
+			endpoints.AddEndpointMapping(RegionID, "Rds", fmt.Sprintf("rds.aliyuncs.com"))
+		}
+	}
+
 	endpoints.AddEndpointMapping(RegionID, "Ecs", fmt.Sprintf("ecs-vpc.%s.aliyuncs.com", RegionID))
-	endpoints.AddEndpointMapping(RegionID, "Rds", fmt.Sprintf("rds-vpc.%s.aliyuncs.com", RegionID))
 }
 
 func getSDKClient(authInfo *AKInfo) (*sdk.Client, error) {
