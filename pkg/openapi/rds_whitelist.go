@@ -75,7 +75,7 @@ func (r *RdsWhitelistOperator) DeleteWhitelist(rdsId, whitelistName, podIP strin
 	req.ModifyMode = "Delete"
 
 	if whitelistName == "" {
-		req.DBInstanceIPArrayName = "rds_default"
+		req.DBInstanceIPArrayName = "default"
 	} else {
 		req.DBInstanceIPArrayName = whitelistName
 	}

@@ -170,13 +170,13 @@ func (r *rdsWhiteListPlugin) cleanUp(pod *apiv1.Pod) error {
 	//}
 	//cleaned[whitelistName] = true
 
-	go func() {
+	go func(whiteList string) {
 		rdsIDs := strings.Split(pod.Annotations[LabelRdsID], ",")
 		for _, rdsId := range rdsIDs {
-			err := rdsClient.DeleteWhitelist(rdsId, whitelistName, pod.Status.PodIP)
+			err := rdsClient.DeleteWhitelist(rdsId, whiteList, pod.Status.PodIP)
 			if err != nil {
 				msg := fmt.Sprintf("Failed to delete %v from whitelist %s under rds %s %s",
-					pod.Status.PodIP, whitelistName, rdsId, openapi.ParseErrorMessage(err.Error()).Message)
+					pod.Status.PodIP, whiteList, rdsId, openapi.ParseErrorMessage(err.Error()).Message)
 				log.Error(msg)
 				k8s.SendPodEvent(pod, apiv1.EventTypeWarning, "Deleting", msg)
 				return
@@ -185,7 +185,7 @@ func (r *rdsWhiteListPlugin) cleanUp(pod *apiv1.Pod) error {
 			log.Infof(msg)
 			k8s.SendPodEvent(pod, apiv1.EventTypeNormal, "Deleting", msg)
 		}
-	}()
+	}(whitelistName)
 
 	return nil
 }
