@@ -36,6 +36,10 @@ func (r *RdsWhitelistOperator) CreateWhitelist(rdsId, podIP, whitelistName strin
 
 	_, err := r.ModifySecurityIps(req)
 
+	if err != nil && ParseErrorMessage(err.Error()).ErrorCode == "SecurityIPList.Duplicate" {
+		return nil
+	}
+
 	return err
 }
 
