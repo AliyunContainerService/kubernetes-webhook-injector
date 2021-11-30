@@ -7,7 +7,10 @@ COPY ./ /go/src/github.com/AliyunContainerService/kubernetes-webhook-injector
 RUN go env -w GOPROXY=https://mirrors.aliyun.com/goproxy/ && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 make build-binary
 
 # Copy the controller-manager into a thin image
-FROM golang:1.17.3
+FROM debian:bullseye
+RUN apt-get update \
+    && apt-get install -y openssl curl tini \
+    && rm -rf /var/lib/apt/lists/*
 WORKDIR /root/
 COPY --from=builder /go/src/github.com/AliyunContainerService/kubernetes-webhook-injector/bin/kubernetes-webhook-injector .
 COPY hack/gencerts.sh .
