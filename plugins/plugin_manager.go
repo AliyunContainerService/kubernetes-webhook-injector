@@ -82,7 +82,7 @@ func mergePatchOperations(operations []utils.PatchOperation) []utils.PatchOperat
 			mgdOps = append(mgdOps, op)
 		}
 	}
-	mgdOps = append(mgdOps, utils.PatchOperation{Op: "add", Path: "/spec/initContainers", Value: containers})
+	mgdOps = append(mgdOps, utils.PatchOperation{Op: "add", Path: "/spec/initContainers/-", Value: containers})
 	return mgdOps
 }
 
