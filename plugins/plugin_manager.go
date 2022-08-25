@@ -57,10 +57,7 @@ func (pm *PluginManager) HandlePatchPod(pod *apiv1.Pod, operation v1beta1.Operat
 			patchOperations = append(patchOperations, singlePatchOperations...)
 		}
 	}
-	//originalContainers := pod.Spec.InitContainers
 	if len(patchOperations) > 0 {
-		//toPatch := mergePatchOperations(patchOperations)
-		//toPatch
 		patchBytes, err := json.Marshal(mergePatchOperations(patchOperations, pod.Spec.InitContainers))
 		if err != nil {
 			log.Warningf("Failed to marshal patch bytes by plugin skip,because of %v", err)
