@@ -57,8 +57,11 @@ func (pm *PluginManager) HandlePatchPod(pod *apiv1.Pod, operation v1beta1.Operat
 			patchOperations = append(patchOperations, singlePatchOperations...)
 		}
 	}
+	//originalContainers := pod.Spec.InitContainers
 	if len(patchOperations) > 0 {
-		patchBytes, err := json.Marshal(mergePatchOperations(patchOperations))
+		//toPatch := mergePatchOperations(patchOperations)
+		//toPatch
+		patchBytes, err := json.Marshal(mergePatchOperations(patchOperations, pod.Spec.InitContainers))
 		if err != nil {
 			log.Warningf("Failed to marshal patch bytes by plugin skip,because of %v", err)
 		} else {
@@ -70,9 +73,9 @@ func (pm *PluginManager) HandlePatchPod(pod *apiv1.Pod, operation v1beta1.Operat
 	return nil, nil
 }
 
-func mergePatchOperations(operations []utils.PatchOperation) []utils.PatchOperation {
+func mergePatchOperations(operations []utils.PatchOperation, originalContainers []apiv1.Container) []utils.PatchOperation {
 	mgdOps := make([]utils.PatchOperation, 0)
-	containers := make([]apiv1.Container, 0)
+	containers := originalContainers
 	for _, op := range operations {
 		if op.Op == "add" && op.Path == "/spec/initContainers" {
 			if l, ok := op.Value.([]apiv1.Container); ok {
@@ -82,7 +85,7 @@ func mergePatchOperations(operations []utils.PatchOperation) []utils.PatchOperat
 			mgdOps = append(mgdOps, op)
 		}
 	}
-	mgdOps = append(mgdOps, utils.PatchOperation{Op: "add", Path: "/spec/initContainers/-", Value: containers})
+	mgdOps = append(mgdOps, utils.PatchOperation{Op: "add", Path: "/spec/initContainers", Value: containers})
 	return mgdOps
 }
 
