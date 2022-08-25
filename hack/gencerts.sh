@@ -98,18 +98,19 @@ distinguished_name = req_distinguished_name
 basicConstraints = CA:FALSE
 keyUsage = nonRepudiation, digitalSignature, keyEncipherment
 extendedKeyUsage = clientAuth, serverAuth
+subjectAltName = DNS:kubernetes-webhook-injector.kube-system.svc
 EOF
 
 # Create a certificate authority.
 touch ${TMP_DIR}/.rnd
 export RANDFILE=${TMP_DIR}/.rnd
 openssl genrsa -out ${TMP_DIR}/ca-key.pem 2048
-openssl req -x509 -new -nodes -key ${TMP_DIR}/ca-key.pem -days 100000 -out ${TMP_DIR}/ca-cert.pem -subj "/CN=${SERVICE}_ca"
+openssl req -x509 -new -nodes -key ${TMP_DIR}/ca-key.pem -days 100000 -out ${TMP_DIR}/ca-cert.pem -subj "/CN=${SERVICE}_ca" -addext "subjectAltName = DNS:${SERVICE}_ca"
 
 # Create a server certificate.
 openssl genrsa -out ${TMP_DIR}/server-key.pem 2048
 # Note the CN is the DNS name of the service of the webhook.
-openssl req -new -key ${TMP_DIR}/server-key.pem -out ${TMP_DIR}/server.csr -subj "/CN=${SERVICE}.${NAMESPACE}.svc" -config ${TMP_DIR}/server.conf
+openssl req -new -key ${TMP_DIR}/server-key.pem -out ${TMP_DIR}/server.csr -subj "/CN=${SERVICE}.${NAMESPACE}.svc" -config ${TMP_DIR}/server.conf -addext "subjectAltName = DNS:${SERVICE}.${NAMESPACE}.svc"
 openssl x509 -req -in ${TMP_DIR}/server.csr -CA ${TMP_DIR}/ca-cert.pem -CAkey ${TMP_DIR}/ca-key.pem -CAcreateserial -out ${TMP_DIR}/server-cert.pem -days 100000 -extensions v3_req -extfile ${TMP_DIR}/server.conf
 
 if [[ "$IN_POD" == "true" ]];  then
