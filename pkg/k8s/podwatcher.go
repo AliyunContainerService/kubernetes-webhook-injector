@@ -95,8 +95,9 @@ func WatchInitContainerStatus2(pod *apiv1.Pod, containerName string, ch chan<- C
 			}
 			if status.LastTerminationState.Terminated != nil {
 				if status.LastTerminationState.Terminated.ExitCode != 0 {
-					msg := fmt.Sprintf("plugin %s failed in pod %s of namespace %s. %s",
-						status.Name, pod.Name, pod.Namespace, openapi.ParseErrorMessage(status.LastTerminationState.Terminated.Message).Message)
+					msg := fmt.Sprintf("plugin %s failed in pod %s of namespace %s. %s. %s",
+						status.Name, pod.Name, pod.Namespace, openapi.ParseErrorMessage(status.LastTerminationState.Terminated.Message).ErrorCode,
+						openapi.ParseErrorMessage(status.LastTerminationState.Terminated.Message).Message)
 					//log.Error(msg)
 					//SendPodEvent(currentPod, apiv1.EventTypeWarning, "Created", msg)
 					ch <- ContainerExitStatus{

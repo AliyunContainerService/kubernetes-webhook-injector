@@ -6,3 +6,7 @@ type PatchOperation struct {
 	Path  string      `json:"path"`
 	Value interface{} `json:"value,omitempty"`
 }
+
+type PluginOption struct {
+	IntranetAccess bool
+}

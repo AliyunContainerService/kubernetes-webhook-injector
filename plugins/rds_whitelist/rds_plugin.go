@@ -5,7 +5,7 @@ import (
 	"github.com/AliyunContainerService/kubernetes-webhook-injector/pkg/k8s"
 	"github.com/AliyunContainerService/kubernetes-webhook-injector/pkg/openapi"
 	"github.com/AliyunContainerService/kubernetes-webhook-injector/plugins/utils"
-	"k8s.io/api/admission/v1beta1"
+	admissionv1 "k8s.io/api/admission/v1"
 	apiv1 "k8s.io/api/core/v1"
 	log "k8s.io/klog"
 	"os"
@@ -20,7 +20,7 @@ const (
 	LabelWhiteListName = "ack.aliyun.com/white_list_name"
 
 	InitContainerName    = "rds-plugin"
-	AddWlstCommandTemplt = "/root/rds-whitelist-plugin --region_id %s --rds_id %s --white_list_name %s --access_key_id %s --access_key_secret %s --sts_token %s"
+	AddWlstCommandTemplt = "/root/rds-whitelist-plugin --region_id %s --rds_id %s --white_list_name %s --access_key_id %s --access_key_secret %s --sts_token %s %s"
 	IMAGE_ENV            = "RDS_PLUGIN_IMAGE"
 )
 
@@ -67,17 +67,17 @@ func (r *rdsWhiteListPlugin) MatchAnnotations(podAnnots map[string]string) bool 
 	return true
 }
 
-func (r *rdsWhiteListPlugin) Patch(pod *apiv1.Pod, operation v1beta1.Operation) []utils.PatchOperation {
+func (r *rdsWhiteListPlugin) Patch(pod *apiv1.Pod, operation admissionv1.Operation, option *utils.PluginOption) []utils.PatchOperation {
 	var opPatches []utils.PatchOperation
 	switch operation {
-	case v1beta1.Create:
+	case admissionv1.Create:
 		for _, c := range pod.Spec.InitContainers {
 			if c.Name == InitContainerName {
 				break
 			}
 		}
 
-		patch := r.patchInitContainer(pod)
+		patch := r.patchInitContainer(pod, option)
 		opPatches = append(opPatches, patch)
 		go func() {
 			// 获取相同命名空间下，Generate名相同，并且有rds-plugin为名字的init容器
@@ -109,13 +109,13 @@ func (r *rdsWhiteListPlugin) Patch(pod *apiv1.Pod, operation v1beta1.Operation) 
 				}
 			}
 		}()
-	case v1beta1.Delete:
+	case admissionv1.Delete:
 		r.cleanUp(pod)
 	}
 	return opPatches
 }
 
-func (r *rdsWhiteListPlugin) patchInitContainer(pod *apiv1.Pod) utils.PatchOperation {
+func (r *rdsWhiteListPlugin) patchInitContainer(pod *apiv1.Pod, option *utils.PluginOption) utils.PatchOperation {
 	authInfo, err := openapi.GetAuthInfo()
 	if err != nil {
 		log.Fatalf("Failed to authenticate OpenAPI client due to %v", err)
@@ -129,6 +129,11 @@ func (r *rdsWhiteListPlugin) patchInitContainer(pod *apiv1.Pod) utils.PatchOpera
 	akSecrt := authInfo.AccessKeySecret
 	stsToken := authInfo.SecurityToken
 
+	access := ""
+	if option.IntranetAccess {
+		access = "--intranet_access"
+	}
+
 	con := apiv1.Container{
 		Image:           InitContainerImage,
 		Name:            InitContainerName,
@@ -136,7 +141,7 @@ func (r *rdsWhiteListPlugin) patchInitContainer(pod *apiv1.Pod) utils.PatchOpera
 	}
 
 	con.Command = strings.Split(
-		fmt.Sprintf(AddWlstCommandTemplt, regionId, rdsId, whiteListName, akId, akSecrt, stsToken), " ")
+		fmt.Sprintf(AddWlstCommandTemplt, regionId, rdsId, whiteListName, akId, akSecrt, stsToken, access), " ")
 
 	con.Env = []apiv1.EnvVar{
 		{Name: "POD_NAME", ValueFrom: &apiv1.EnvVarSource{FieldRef: &apiv1.ObjectFieldSelector{FieldPath: "metadata.name"}}},
@@ -175,8 +180,8 @@ func (r *rdsWhiteListPlugin) cleanUp(pod *apiv1.Pod) error {
 		for _, rdsId := range rdsIDs {
 			err := rdsClient.DeleteWhitelist(rdsId, whiteList, pod.Status.PodIP)
 			if err != nil {
-				msg := fmt.Sprintf("Failed to delete %v from whitelist %s under rds %s %s",
-					pod.Status.PodIP, whiteList, rdsId, openapi.ParseErrorMessage(err.Error()).Message)
+				msg := fmt.Sprintf("Failed to delete %v from whitelist %s under rds %s. %s. %s",
+					pod.Status.PodIP, whiteList, rdsId, openapi.ParseErrorMessage(err.Error()).ErrorCode, openapi.ParseErrorMessage(err.Error()).Message)
 				log.Error(msg)
 				k8s.SendPodEvent(pod, apiv1.EventTypeWarning, "Deleting", msg)
 				return

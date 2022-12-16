@@ -5,7 +5,7 @@ import (
 	"github.com/AliyunContainerService/kubernetes-webhook-injector/pkg/k8s"
 	"github.com/AliyunContainerService/kubernetes-webhook-injector/pkg/openapi"
 	"github.com/AliyunContainerService/kubernetes-webhook-injector/plugins/utils"
-	"k8s.io/api/admission/v1beta1"
+	admissionv1 "k8s.io/api/admission/v1"
 	apiv1 "k8s.io/api/core/v1"
 	log "k8s.io/klog"
 	"os"
@@ -18,7 +18,7 @@ const (
 	PluginName = "SecurityGroupPlugin"
 	LabelSgID  = "ack.aliyun.com/security_group_id"
 
-	AddSgCommandTemplt = "/root/security-group-plugin --region_id %s --security_group_id %s --permission_id %s --access_key_id %s --access_key_secret %s --sts_token %s"
+	AddSgCommandTemplt = "/root/security-group-plugin --region_id %s --security_group_id %s --permission_id %s --access_key_id %s --access_key_secret %s --sts_token %s %s"
 	InitContainerName  = "sg-plugin"
 	IMAGE_ENV          = "SG_PLUGIN_IMAGE"
 )
@@ -117,18 +117,18 @@ func (s *SecurityGroupPlugin) MatchAnnotations(podAnnots map[string]string) bool
 	}
 	return true
 }
-func (s *SecurityGroupPlugin) Patch(pod *apiv1.Pod, operation v1beta1.Operation) []utils.PatchOperation {
+func (s *SecurityGroupPlugin) Patch(pod *apiv1.Pod, operation admissionv1.Operation, option *utils.PluginOption) []utils.PatchOperation {
 	var patches []utils.PatchOperation
 
 	switch operation {
-	case v1beta1.Create:
+	case admissionv1.Create:
 		//如果已经有sg initContainer：保证幂等
 		for _, c := range pod.Spec.InitContainers {
 			if c.Name == InitContainerName {
 				break
 			}
 		}
-		patch := s.patchInitContainer(pod)
+		patch := s.patchInitContainer(pod, option)
 		patches = append(patches, patch)
 		go func() {
 			//todo 查找同命名空间下所有相同 generationName 的Pods，
@@ -163,17 +163,17 @@ func (s *SecurityGroupPlugin) Patch(pod *apiv1.Pod, operation v1beta1.Operation)
 				}
 			}
 		}()
-	case v1beta1.Delete:
+	case admissionv1.Delete:
 		s.cleanUp(pod)
 
-	case v1beta1.Update:
+	case admissionv1.Update:
 		log.Infof("Pod %s is updated", pod.Name)
 	}
 
 	return patches
 }
 
-func (s *SecurityGroupPlugin) patchInitContainer(pod *apiv1.Pod) utils.PatchOperation {
+func (s *SecurityGroupPlugin) patchInitContainer(pod *apiv1.Pod, option *utils.PluginOption) utils.PatchOperation {
 	authInfo, err := openapi.GetAuthInfo()
 	if err != nil {
 		log.Fatalf("Failed to authenticate OpenAPI client due to %v", err)
@@ -184,6 +184,10 @@ func (s *SecurityGroupPlugin) patchInitContainer(pod *apiv1.Pod) utils.PatchOper
 	akId := authInfo.AccessKeyId
 	akSecrt := authInfo.AccessKeySecret
 	stsToken := authInfo.SecurityToken
+	access := ""
+	if option.IntranetAccess {
+		access = "--intranet_access"
+	}
 
 	con := apiv1.Container{
 		Image:           InitContainerImage,
@@ -192,7 +196,7 @@ func (s *SecurityGroupPlugin) patchInitContainer(pod *apiv1.Pod) utils.PatchOper
 	}
 
 	con.Command = strings.Split(fmt.Sprintf(AddSgCommandTemplt, regionId, sgId,
-		"$(POD_NAMESPACE):$(POD_NAME)", akId, akSecrt, stsToken), " ")
+		"$(POD_NAMESPACE):$(POD_NAME)", akId, akSecrt, stsToken, access), " ")
 
 	con.Env = []apiv1.EnvVar{
 		{Name: "POD_NAME", ValueFrom: &apiv1.EnvVarSource{FieldRef: &apiv1.ObjectFieldSelector{FieldPath: "metadata.name"}}},

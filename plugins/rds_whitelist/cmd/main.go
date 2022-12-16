@@ -18,6 +18,7 @@ type Options struct {
 	AccessKeySecret string `long:"access_key_secret" required:"true"`
 	StsToken        string `long:"sts_token"`
 	ToDelete        bool   `long:"delete"`
+	IntranetAccess  bool   `long:"intranet_access"`
 }
 
 const terminationLog = "/dev/termination-log"
@@ -40,6 +41,8 @@ func main() {
 		log.Fatal(err)
 	}
 	rdsIDs := strings.Split(opt.RdsIDs, ",")
+
+	openapi.InitClient(opt.IntranetAccess)
 
 	authInfo := &openapi.AKInfo{
 		AccessKeyId:     opt.AccessKeyID,

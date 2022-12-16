@@ -7,9 +7,10 @@ import (
 	"fmt"
 	"github.com/AliyunContainerService/kubernetes-webhook-injector/pkg/k8s"
 	"github.com/AliyunContainerService/kubernetes-webhook-injector/plugins"
+	"github.com/AliyunContainerService/kubernetes-webhook-injector/plugins/utils"
 	"io/ioutil"
-	"k8s.io/api/admission/v1beta1"
-	mutateV1beta1 "k8s.io/api/admissionregistration/v1beta1"
+	admissionv1 "k8s.io/api/admission/v1"
+	mutateV1 "k8s.io/api/admissionregistration/v1"
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -36,7 +37,7 @@ var (
 )
 
 func init() {
-	_ = mutateV1beta1.AddToScheme(runtimeScheme)
+	_ = mutateV1.AddToScheme(runtimeScheme)
 	// defaulting with webhooks:
 	// https://github.com/kubernetes/kubernetes/issues/57982
 	_ = v1.AddToScheme(runtimeScheme)
@@ -73,11 +74,16 @@ func (ws *WebHookServer) Serve(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// decode response
-	var admissionResponse *v1beta1.AdmissionResponse
-	ar := v1beta1.AdmissionReview{}
+	var admissionResponse *admissionv1.AdmissionResponse
+	ar := admissionv1.AdmissionReview{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "AdmissionReview",
+			APIVersion: "admission.k8s.io/v1",
+		},
+	}
 	if _, _, err := deserializer.Decode(body, nil, &ar); err != nil {
 		log.Errorf("Can't decode body: %v", err)
-		admissionResponse = &v1beta1.AdmissionResponse{
+		admissionResponse = &admissionv1.AdmissionResponse{
 			Result: &metav1.Status{
 				Message: err.Error(),
 			},
@@ -90,7 +96,12 @@ func (ws *WebHookServer) Serve(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// wrapper admissionReview response
-	admissionReview := v1beta1.AdmissionReview{}
+	admissionReview := admissionv1.AdmissionReview{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "AdmissionReview",
+			APIVersion: "admission.k8s.io/v1",
+		},
+	}
 	if admissionResponse != nil {
 		admissionReview.Response = admissionResponse
 		if ar.Request != nil {
@@ -111,7 +122,7 @@ func (ws *WebHookServer) Serve(w http.ResponseWriter, r *http.Request) {
 }
 
 // mutate the pod spec and patch pod
-func (ws *WebHookServer) mutate(ar *v1beta1.AdmissionReview) *v1beta1.AdmissionResponse {
+func (ws *WebHookServer) mutate(ar *admissionv1.AdmissionReview) *admissionv1.AdmissionResponse {
 	req := ar.Request
 	// default log level is 2
 	log.V(5).Infof("AdmissionReview for Kind=%v, Namespace=%v Name=%v (%v) UID=%v patchOperation=%v UserInfo=%v",
@@ -121,10 +132,10 @@ func (ws *WebHookServer) mutate(ar *v1beta1.AdmissionReview) *v1beta1.AdmissionR
 	pod := &v1.Pod{}
 
 	// Create 时才会携带 req.Object.Raw, 否则反序列化会失败
-	if req.Operation == v1beta1.Create {
+	if req.Operation == admissionv1.Create {
 		if err := json.Unmarshal(raw, pod); err != nil {
 			log.Errorf("Failed to unmarshal pod %v,because of %v", raw, err)
-			return &v1beta1.AdmissionResponse{
+			return &admissionv1.AdmissionResponse{
 				Allowed: true,
 			}
 		}
@@ -133,51 +144,51 @@ func (ws *WebHookServer) mutate(ar *v1beta1.AdmissionReview) *v1beta1.AdmissionR
 	// 用于在 DELETE 时去删除资源, 感觉这里不太优雅，不同的operation做了不同工作。也许不应该放在这里做区分,应该下沉下去给plugin manager做
 	pod.Namespace = req.Namespace
 	pod.Name = req.Name
-	if req.Operation == v1beta1.Delete {
+	if req.Operation == admissionv1.Delete {
 		p, err := ws.clientSet.CoreV1().Pods(pod.Namespace).Get(context.Background(), pod.Name, metav1.GetOptions{})
 		if err != nil {
 			log.Errorf("failed to get pod %s from namespace %s ,because of %v", pod.Name, pod.Namespace, err)
-			return &v1beta1.AdmissionResponse{
+			return &admissionv1.AdmissionResponse{
 				Allowed: true,
 			}
 		}
 		pod = p
 	}
 
-	patchBytes, err := ws.pluginManager.HandlePatchPod(pod, req.Operation)
+	patchBytes, err := ws.pluginManager.HandlePatchPod(pod, req.Operation, &utils.PluginOption{IntranetAccess: ws.Options.IntranetAccess})
 	if err != nil {
 		log.Errorf("Failed to patch pod %v,because of %v", pod, err)
-		return &v1beta1.AdmissionResponse{
+		return &admissionv1.AdmissionResponse{
 			Allowed: true,
 		}
 	}
 
 	if patchBytes != nil {
-		response := &v1beta1.AdmissionResponse{Allowed: true}
+		response := &admissionv1.AdmissionResponse{Allowed: true}
 		response.Patch = patchBytes
-		patchType := v1beta1.PatchTypeJSONPatch
+		patchType := admissionv1.PatchTypeJSONPatch
 		response.PatchType = &patchType
 		// change patch debug log level to 5
 		log.V(5).Infof("Successfully patch pod %s in %s with pathOps %v", pod.Name, pod.Namespace, string(patchBytes))
 		return response
 	}
 
-	return &v1beta1.AdmissionResponse{
+	return &admissionv1.AdmissionResponse{
 		Allowed: true,
 	}
 }
 
 // register MutatingWebHookConfiguration
 func (ws *WebHookServer) registerMutatingWebhookConfiguration() error {
-	mutatingConfigs := ws.clientSet.AdmissionregistrationV1beta1().MutatingWebhookConfigurations()
+	mutatingConfigs := ws.clientSet.AdmissionregistrationV1().MutatingWebhookConfigurations()
 	conf, err := mutatingConfigs.Get(context.Background(), MutatingWebhookConfigurationName, metav1.GetOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
 			// todo create a new one
-			mutatingRules := []mutateV1beta1.RuleWithOperations{
+			mutatingRules := []mutateV1.RuleWithOperations{
 				{
-					Operations: []mutateV1beta1.OperationType{mutateV1beta1.Create, mutateV1beta1.Delete},
-					Rule: mutateV1beta1.Rule{
+					Operations: []mutateV1.OperationType{mutateV1.Create, mutateV1.Delete},
+					Rule: mutateV1.Rule{
 						APIGroups:   []string{""},
 						APIVersions: []string{"v1"},
 						Resources:   []string{"pods"},
@@ -198,11 +209,14 @@ func (ws *WebHookServer) registerMutatingWebhookConfiguration() error {
 			}
 			portInt32 := int32(port)
 
-			mutatingWebHook := mutateV1beta1.MutatingWebhook{
+			sideEffects := mutateV1.SideEffectClassNone
+			ignore := mutateV1.Ignore
+
+			mutatingWebHook := mutateV1.MutatingWebhook{
 				Name:  "kubernetes-webhook-injector.ack.aliyun.com",
 				Rules: mutatingRules,
-				ClientConfig: mutateV1beta1.WebhookClientConfig{
-					Service: &mutateV1beta1.ServiceReference{
+				ClientConfig: mutateV1.WebhookClientConfig{
+					Service: &mutateV1.ServiceReference{
 						Namespace: ws.Options.ServiceNamespace,
 						Name:      ws.Options.ServiceName,
 						Port:      &portInt32,
@@ -210,13 +224,16 @@ func (ws *WebHookServer) registerMutatingWebhookConfiguration() error {
 					},
 					CABundle: caCert,
 				},
+				AdmissionReviewVersions: []string{"v1", "v1beta1"},
+				SideEffects:             &sideEffects,
+				FailurePolicy:           &ignore,
 			}
 
-			webhookConfig := &mutateV1beta1.MutatingWebhookConfiguration{
+			webhookConfig := &mutateV1.MutatingWebhookConfiguration{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: MutatingWebhookConfigurationName,
 				},
-				Webhooks: []mutateV1beta1.MutatingWebhook{mutatingWebHook},
+				Webhooks: []mutateV1.MutatingWebhook{mutatingWebHook},
 			}
 
 			if _, err := mutatingConfigs.Create(context.Background(), webhookConfig, metav1.CreateOptions{}); err != nil {
