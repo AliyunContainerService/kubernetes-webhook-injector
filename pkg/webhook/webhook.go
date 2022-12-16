@@ -9,7 +9,7 @@ import (
 	"github.com/AliyunContainerService/kubernetes-webhook-injector/plugins"
 	"io/ioutil"
 	"k8s.io/api/admission/v1beta1"
-	mutateV1beta1 "k8s.io/api/admissionregistration/v1beta1"
+	mutateV1 "k8s.io/api/admissionregistration/v1"
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -36,7 +36,7 @@ var (
 )
 
 func init() {
-	_ = mutateV1beta1.AddToScheme(runtimeScheme)
+	_ = mutateV1.AddToScheme(runtimeScheme)
 	// defaulting with webhooks:
 	// https://github.com/kubernetes/kubernetes/issues/57982
 	_ = v1.AddToScheme(runtimeScheme)
@@ -169,15 +169,15 @@ func (ws *WebHookServer) mutate(ar *v1beta1.AdmissionReview) *v1beta1.AdmissionR
 
 // register MutatingWebHookConfiguration
 func (ws *WebHookServer) registerMutatingWebhookConfiguration() error {
-	mutatingConfigs := ws.clientSet.AdmissionregistrationV1beta1().MutatingWebhookConfigurations()
+	mutatingConfigs := ws.clientSet.AdmissionregistrationV1().MutatingWebhookConfigurations()
 	conf, err := mutatingConfigs.Get(context.Background(), MutatingWebhookConfigurationName, metav1.GetOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
 			// todo create a new one
-			mutatingRules := []mutateV1beta1.RuleWithOperations{
+			mutatingRules := []mutateV1.RuleWithOperations{
 				{
-					Operations: []mutateV1beta1.OperationType{mutateV1beta1.Create, mutateV1beta1.Delete},
-					Rule: mutateV1beta1.Rule{
+					Operations: []mutateV1.OperationType{mutateV1.Create, mutateV1.Delete},
+					Rule: mutateV1.Rule{
 						APIGroups:   []string{""},
 						APIVersions: []string{"v1"},
 						Resources:   []string{"pods"},
@@ -198,11 +198,11 @@ func (ws *WebHookServer) registerMutatingWebhookConfiguration() error {
 			}
 			portInt32 := int32(port)
 
-			mutatingWebHook := mutateV1beta1.MutatingWebhook{
+			mutatingWebHook := mutateV1.MutatingWebhook{
 				Name:  "kubernetes-webhook-injector.ack.aliyun.com",
 				Rules: mutatingRules,
-				ClientConfig: mutateV1beta1.WebhookClientConfig{
-					Service: &mutateV1beta1.ServiceReference{
+				ClientConfig: mutateV1.WebhookClientConfig{
+					Service: &mutateV1.ServiceReference{
 						Namespace: ws.Options.ServiceNamespace,
 						Name:      ws.Options.ServiceName,
 						Port:      &portInt32,
@@ -212,11 +212,11 @@ func (ws *WebHookServer) registerMutatingWebhookConfiguration() error {
 				},
 			}
 
-			webhookConfig := &mutateV1beta1.MutatingWebhookConfiguration{
+			webhookConfig := &mutateV1.MutatingWebhookConfiguration{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: MutatingWebhookConfigurationName,
 				},
-				Webhooks: []mutateV1beta1.MutatingWebhook{mutatingWebHook},
+				Webhooks: []mutateV1.MutatingWebhook{mutatingWebHook},
 			}
 
 			if _, err := mutatingConfigs.Create(context.Background(), webhookConfig, metav1.CreateOptions{}); err != nil {
