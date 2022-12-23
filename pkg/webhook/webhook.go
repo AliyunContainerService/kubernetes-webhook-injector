@@ -198,6 +198,8 @@ func (ws *WebHookServer) registerMutatingWebhookConfiguration() error {
 			}
 			portInt32 := int32(port)
 
+			sideEffects := mutateV1.SideEffectClassNone
+
 			mutatingWebHook := mutateV1.MutatingWebhook{
 				Name:  "kubernetes-webhook-injector.ack.aliyun.com",
 				Rules: mutatingRules,
@@ -210,6 +212,8 @@ func (ws *WebHookServer) registerMutatingWebhookConfiguration() error {
 					},
 					CABundle: caCert,
 				},
+				AdmissionReviewVersions: []string{"v1", "v1beta1"},
+				SideEffects:             &sideEffects,
 			}
 
 			webhookConfig := &mutateV1.MutatingWebhookConfiguration{
