@@ -8,7 +8,7 @@ import (
 	"github.com/AliyunContainerService/kubernetes-webhook-injector/pkg/k8s"
 	"github.com/AliyunContainerService/kubernetes-webhook-injector/plugins"
 	"io/ioutil"
-	"k8s.io/api/admission/v1beta1"
+	admissionv1 "k8s.io/api/admission/v1"
 	mutateV1 "k8s.io/api/admissionregistration/v1"
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -73,11 +73,11 @@ func (ws *WebHookServer) Serve(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// decode response
-	var admissionResponse *v1beta1.AdmissionResponse
-	ar := v1beta1.AdmissionReview{}
+	var admissionResponse *admissionv1.AdmissionResponse
+	ar := admissionv1.AdmissionReview{}
 	if _, _, err := deserializer.Decode(body, nil, &ar); err != nil {
 		log.Errorf("Can't decode body: %v", err)
-		admissionResponse = &v1beta1.AdmissionResponse{
+		admissionResponse = &admissionv1.AdmissionResponse{
 			Result: &metav1.Status{
 				Message: err.Error(),
 			},
@@ -90,7 +90,7 @@ func (ws *WebHookServer) Serve(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// wrapper admissionReview response
-	admissionReview := v1beta1.AdmissionReview{}
+	admissionReview := admissionv1.AdmissionReview{}
 	if admissionResponse != nil {
 		admissionReview.Response = admissionResponse
 		if ar.Request != nil {
@@ -111,7 +111,7 @@ func (ws *WebHookServer) Serve(w http.ResponseWriter, r *http.Request) {
 }
 
 // mutate the pod spec and patch pod
-func (ws *WebHookServer) mutate(ar *v1beta1.AdmissionReview) *v1beta1.AdmissionResponse {
+func (ws *WebHookServer) mutate(ar *admissionv1.AdmissionReview) *admissionv1.AdmissionResponse {
 	req := ar.Request
 	// default log level is 2
 	log.V(5).Infof("AdmissionReview for Kind=%v, Namespace=%v Name=%v (%v) UID=%v patchOperation=%v UserInfo=%v",
@@ -121,10 +121,10 @@ func (ws *WebHookServer) mutate(ar *v1beta1.AdmissionReview) *v1beta1.AdmissionR
 	pod := &v1.Pod{}
 
 	// Create 时才会携带 req.Object.Raw, 否则反序列化会失败
-	if req.Operation == v1beta1.Create {
+	if req.Operation == admissionv1.Create {
 		if err := json.Unmarshal(raw, pod); err != nil {
 			log.Errorf("Failed to unmarshal pod %v,because of %v", raw, err)
-			return &v1beta1.AdmissionResponse{
+			return &admissionv1.AdmissionResponse{
 				Allowed: true,
 			}
 		}
@@ -133,11 +133,11 @@ func (ws *WebHookServer) mutate(ar *v1beta1.AdmissionReview) *v1beta1.AdmissionR
 	// 用于在 DELETE 时去删除资源, 感觉这里不太优雅，不同的operation做了不同工作。也许不应该放在这里做区分,应该下沉下去给plugin manager做
 	pod.Namespace = req.Namespace
 	pod.Name = req.Name
-	if req.Operation == v1beta1.Delete {
+	if req.Operation == admissionv1.Delete {
 		p, err := ws.clientSet.CoreV1().Pods(pod.Namespace).Get(context.Background(), pod.Name, metav1.GetOptions{})
 		if err != nil {
 			log.Errorf("failed to get pod %s from namespace %s ,because of %v", pod.Name, pod.Namespace, err)
-			return &v1beta1.AdmissionResponse{
+			return &admissionv1.AdmissionResponse{
 				Allowed: true,
 			}
 		}
@@ -147,22 +147,22 @@ func (ws *WebHookServer) mutate(ar *v1beta1.AdmissionReview) *v1beta1.AdmissionR
 	patchBytes, err := ws.pluginManager.HandlePatchPod(pod, req.Operation)
 	if err != nil {
 		log.Errorf("Failed to patch pod %v,because of %v", pod, err)
-		return &v1beta1.AdmissionResponse{
+		return &admissionv1.AdmissionResponse{
 			Allowed: true,
 		}
 	}
 
 	if patchBytes != nil {
-		response := &v1beta1.AdmissionResponse{Allowed: true}
+		response := &admissionv1.AdmissionResponse{Allowed: true}
 		response.Patch = patchBytes
-		patchType := v1beta1.PatchTypeJSONPatch
+		patchType := admissionv1.PatchTypeJSONPatch
 		response.PatchType = &patchType
 		// change patch debug log level to 5
 		log.V(5).Infof("Successfully patch pod %s in %s with pathOps %v", pod.Name, pod.Namespace, string(patchBytes))
 		return response
 	}
 
-	return &v1beta1.AdmissionResponse{
+	return &admissionv1.AdmissionResponse{
 		Allowed: true,
 	}
 }
