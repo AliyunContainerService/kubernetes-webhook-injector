@@ -74,7 +74,12 @@ func (ws *WebHookServer) Serve(w http.ResponseWriter, r *http.Request) {
 
 	// decode response
 	var admissionResponse *admissionv1.AdmissionResponse
-	ar := admissionv1.AdmissionReview{}
+	ar := admissionv1.AdmissionReview{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "AdmissionReview",
+			APIVersion: "admission.k8s.io/v1",
+		},
+	}
 	if _, _, err := deserializer.Decode(body, nil, &ar); err != nil {
 		log.Errorf("Can't decode body: %v", err)
 		admissionResponse = &admissionv1.AdmissionResponse{
