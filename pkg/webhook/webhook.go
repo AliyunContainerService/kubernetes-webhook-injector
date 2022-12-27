@@ -95,7 +95,12 @@ func (ws *WebHookServer) Serve(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// wrapper admissionReview response
-	admissionReview := admissionv1.AdmissionReview{}
+	admissionReview := admissionv1.AdmissionReview{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "AdmissionReview",
+			APIVersion: "admission.k8s.io/v1",
+		},
+	}
 	if admissionResponse != nil {
 		admissionReview.Response = admissionResponse
 		if ar.Request != nil {
