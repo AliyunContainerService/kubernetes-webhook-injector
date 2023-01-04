@@ -12,7 +12,7 @@ import (
 	"github.com/AliyunContainerService/kubernetes-webhook-injector/pkg/k8s"
 	"github.com/AliyunContainerService/kubernetes-webhook-injector/pkg/openapi"
 	"github.com/AliyunContainerService/kubernetes-webhook-injector/plugins/utils"
-	"k8s.io/api/admission/v1beta1"
+	admissionv1 "k8s.io/api/admission/v1"
 	apiv1 "k8s.io/api/core/v1"
 )
 
@@ -69,10 +69,10 @@ func (rp *redisWhiteListPlugin) MatchAnnotations(podAnnots map[string]string) bo
 	return true
 }
 
-func (rp *redisWhiteListPlugin) Patch(pod *apiv1.Pod, operation v1beta1.Operation) []utils.PatchOperation {
+func (rp *redisWhiteListPlugin) Patch(pod *apiv1.Pod, operation admissionv1.Operation) []utils.PatchOperation {
 	var opPatches []utils.PatchOperation
 	switch operation {
-	case v1beta1.Create:
+	case admissionv1.Create:
 		for _, container := range pod.Spec.InitContainers {
 			if container.Name == InitContainerName {
 				break
@@ -111,7 +111,7 @@ func (rp *redisWhiteListPlugin) Patch(pod *apiv1.Pod, operation v1beta1.Operatio
 			}
 		}()
 
-	case v1beta1.Delete:
+	case admissionv1.Delete:
 		rp.cleanUp(pod)
 	}
 	return opPatches

@@ -12,7 +12,7 @@ import (
 	"github.com/AliyunContainerService/kubernetes-webhook-injector/pkg/k8s"
 	"github.com/AliyunContainerService/kubernetes-webhook-injector/pkg/openapi"
 	"github.com/AliyunContainerService/kubernetes-webhook-injector/plugins/utils"
-	"k8s.io/api/admission/v1beta1"
+	admissionv1 "k8s.io/api/admission/v1"
 	apiv1 "k8s.io/api/core/v1"
 )
 
@@ -71,10 +71,10 @@ func (sp *SLBPlugin) MatchAnnotations(podAnnots map[string]string) bool {
 	return true
 }
 
-func (sp *SLBPlugin) Patch(pod *apiv1.Pod, operation v1beta1.Operation) []utils.PatchOperation {
+func (sp *SLBPlugin) Patch(pod *apiv1.Pod, operation admissionv1.Operation) []utils.PatchOperation {
 	var opPatches []utils.PatchOperation
 	switch operation {
-	case v1beta1.Create:
+	case admissionv1.Create:
 		for _, c := range pod.Spec.InitContainers {
 			if c.Name == InitContainerName {
 				break
@@ -112,7 +112,7 @@ func (sp *SLBPlugin) Patch(pod *apiv1.Pod, operation v1beta1.Operation) []utils.
 				}
 			}
 		}()
-	case v1beta1.Delete:
+	case admissionv1.Delete:
 		sp.cleanUp(pod)
 	}
 	return opPatches

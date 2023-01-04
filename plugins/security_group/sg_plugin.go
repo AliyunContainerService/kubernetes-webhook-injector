@@ -5,7 +5,7 @@ import (
 	"github.com/AliyunContainerService/kubernetes-webhook-injector/pkg/k8s"
 	"github.com/AliyunContainerService/kubernetes-webhook-injector/pkg/openapi"
 	"github.com/AliyunContainerService/kubernetes-webhook-injector/plugins/utils"
-	"k8s.io/api/admission/v1beta1"
+	admissionv1 "k8s.io/api/admission/v1"
 	apiv1 "k8s.io/api/core/v1"
 	log "k8s.io/klog"
 	"os"
@@ -117,11 +117,11 @@ func (s *SecurityGroupPlugin) MatchAnnotations(podAnnots map[string]string) bool
 	}
 	return true
 }
-func (s *SecurityGroupPlugin) Patch(pod *apiv1.Pod, operation v1beta1.Operation) []utils.PatchOperation {
+func (s *SecurityGroupPlugin) Patch(pod *apiv1.Pod, operation admissionv1.Operation) []utils.PatchOperation {
 	var patches []utils.PatchOperation
 
 	switch operation {
-	case v1beta1.Create:
+	case admissionv1.Create:
 		//如果已经有sg initContainer：保证幂等
 		for _, c := range pod.Spec.InitContainers {
 			if c.Name == InitContainerName {
@@ -163,10 +163,10 @@ func (s *SecurityGroupPlugin) Patch(pod *apiv1.Pod, operation v1beta1.Operation)
 				}
 			}
 		}()
-	case v1beta1.Delete:
+	case admissionv1.Delete:
 		s.cleanUp(pod)
 
-	case v1beta1.Update:
+	case admissionv1.Update:
 		log.Infof("Pod %s is updated", pod.Name)
 	}
 

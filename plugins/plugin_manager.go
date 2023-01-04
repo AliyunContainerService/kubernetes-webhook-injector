@@ -10,7 +10,7 @@ import (
 	"github.com/AliyunContainerService/kubernetes-webhook-injector/plugins/security_group"
 	"github.com/AliyunContainerService/kubernetes-webhook-injector/plugins/slb_access_control_policy"
 	"github.com/AliyunContainerService/kubernetes-webhook-injector/plugins/utils"
-	"k8s.io/api/admission/v1beta1"
+	admissionv1 "k8s.io/api/admission/v1"
 	apiv1 "k8s.io/api/core/v1"
 	log "k8s.io/klog"
 )
@@ -48,7 +48,7 @@ func (pm *PluginManager) register(plugin Plugin) (err error) {
 }
 
 // handle patch pod operations
-func (pm *PluginManager) HandlePatchPod(pod *apiv1.Pod, operation v1beta1.Operation) ([]byte, error) {
+func (pm *PluginManager) HandlePatchPod(pod *apiv1.Pod, operation admissionv1.Operation) ([]byte, error) {
 	patchOperations := make([]utils.PatchOperation, 0)
 	for _, plugin := range pm.plugins {
 		if plugin.MatchAnnotations(pod.Annotations) {
