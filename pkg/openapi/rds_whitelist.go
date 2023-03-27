@@ -57,7 +57,7 @@ func (r *RdsWhitelistOperator) CreateWhitelist(rdsId, podIP, whitelistName strin
 		_, err := r.ModifySecurityIps(req)
 
 		if err != nil {
-			if ParseErrorMessage(err.Error()).ErrorCode == "InvalidInstanceIp.Duplicate" {
+			if ParseErrorMessage(err.Error()).ErrorCode == "ErrorCode: InvalidInstanceIp.Duplicate" {
 				continue
 			}
 			return err
@@ -110,7 +110,7 @@ func (r *RdsWhitelistOperator) DeleteWhitelist(rdsId, whitelistName, podIP strin
 
 		_, err = r.ModifySecurityIps(req)
 		if err != nil {
-			if ParseErrorMessage(err.Error()).ErrorCode == "InvalidSecurityIPs.NotFound" {
+			if ParseErrorMessage(err.Error()).ErrorCode == "ErrorCode: InvalidSecurityIPs.NotFound" {
 				continue
 			}
 			return err
