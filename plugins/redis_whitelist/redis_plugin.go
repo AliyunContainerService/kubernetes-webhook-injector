@@ -20,7 +20,7 @@ const (
 	LabelRedisID         = "ack.aliyun.com/redis_id"
 	PluginName           = "RedisWhiteListPlugin"
 	InitContainerName    = "redis-plugin"
-	LabelWhiteListName   = "ack.aliyun.com/white_list_name"
+	LabelWhiteListName   = "ack.aliyun.com/redis_white_list_name"
 	IMAGE_ENV            = "REDIS_PLUGIN_IMAGE"
 	AddWlstCommandTemplt = "/root/redis-whitelist-plugin --region_id %s --redis_id %s --white_list_name %s --access_key_id %s --access_key_secret %s --sts_token %s"
 )
