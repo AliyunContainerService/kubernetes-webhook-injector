@@ -209,6 +209,7 @@ func (ws *WebHookServer) registerMutatingWebhookConfiguration() error {
 			portInt32 := int32(port)
 
 			sideEffects := mutateV1.SideEffectClassNone
+			ignore := mutateV1.Ignore
 
 			mutatingWebHook := mutateV1.MutatingWebhook{
 				Name:  "kubernetes-webhook-injector.ack.aliyun.com",
@@ -224,6 +225,7 @@ func (ws *WebHookServer) registerMutatingWebhookConfiguration() error {
 				},
 				AdmissionReviewVersions: []string{"v1", "v1beta1"},
 				SideEffects:             &sideEffects,
+				FailurePolicy:           &ignore,
 			}
 
 			webhookConfig := &mutateV1.MutatingWebhookConfiguration{
