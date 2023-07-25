@@ -9,5 +9,5 @@ import (
 type Plugin interface {
 	Name() string
 	MatchAnnotations(map[string]string) bool
-	Patch(*apiv1.Pod, admissionv1.Operation) []utils.PatchOperation
+	Patch(*apiv1.Pod, admissionv1.Operation, *utils.PluginOption) []utils.PatchOperation
 }

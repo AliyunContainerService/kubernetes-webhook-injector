@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/AliyunContainerService/kubernetes-webhook-injector/pkg/k8s"
 	"github.com/AliyunContainerService/kubernetes-webhook-injector/plugins"
+	"github.com/AliyunContainerService/kubernetes-webhook-injector/plugins/utils"
 	"io/ioutil"
 	admissionv1 "k8s.io/api/admission/v1"
 	mutateV1 "k8s.io/api/admissionregistration/v1"
@@ -154,7 +155,7 @@ func (ws *WebHookServer) mutate(ar *admissionv1.AdmissionReview) *admissionv1.Ad
 		pod = p
 	}
 
-	patchBytes, err := ws.pluginManager.HandlePatchPod(pod, req.Operation)
+	patchBytes, err := ws.pluginManager.HandlePatchPod(pod, req.Operation, &utils.PluginOption{IntranetAccess: ws.Options.IntranetAccess})
 	if err != nil {
 		log.Errorf("Failed to patch pod %v,because of %v", pod, err)
 		return &admissionv1.AdmissionResponse{
