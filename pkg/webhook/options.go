@@ -26,7 +26,8 @@ type WebHookOptions struct {
 	// kubeconf path
 	KubeConf string
 	// plugin and configuration
-	Plugins Plugins
+	IntranetAccess bool
+	Plugins        Plugins
 }
 
 // NewWebHookOptions parse the command line params and initialize the server
@@ -55,6 +56,7 @@ func (wo *WebHookOptions) init() {
 	flag.StringVar(&wo.ServiceName, "service-name", "kubernetes-webhook-injector", "The service of kubernetes-webhook-injector.")
 	flag.StringVar(&wo.ServiceNamespace, "service-namespace", "kube-system", "The namespace of kubernetes-webhook-injector.")
 	flag.StringVar(&wo.Port, "port", "443", "The webhook service port of kubernetes-webhook-injector.")
+	flag.BoolVar(&wo.IntranetAccess, "intranet-access", false, "Enable intranet access or not.")
 
 	flag.StringVar(&wo.KubeConf, "kubeconf", "", "use ~/.kube/conf as default.")
 	// todo enable leader election to support high performance

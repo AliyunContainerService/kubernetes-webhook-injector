@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/AliyunContainerService/kubernetes-webhook-injector/pkg/k8s"
 	"github.com/AliyunContainerService/kubernetes-webhook-injector/plugins"
+	"github.com/AliyunContainerService/kubernetes-webhook-injector/plugins/utils"
 	"io/ioutil"
 	admissionv1 "k8s.io/api/admission/v1"
 	mutateV1 "k8s.io/api/admissionregistration/v1"
@@ -154,7 +155,7 @@ func (ws *WebHookServer) mutate(ar *admissionv1.AdmissionReview) *admissionv1.Ad
 		pod = p
 	}
 
-	patchBytes, err := ws.pluginManager.HandlePatchPod(pod, req.Operation)
+	patchBytes, err := ws.pluginManager.HandlePatchPod(pod, req.Operation, &utils.PluginOption{IntranetAccess: ws.Options.IntranetAccess})
 	if err != nil {
 		log.Errorf("Failed to patch pod %v,because of %v", pod, err)
 		return &admissionv1.AdmissionResponse{
@@ -209,6 +210,7 @@ func (ws *WebHookServer) registerMutatingWebhookConfiguration() error {
 			portInt32 := int32(port)
 
 			sideEffects := mutateV1.SideEffectClassNone
+			ignore := mutateV1.Ignore
 
 			mutatingWebHook := mutateV1.MutatingWebhook{
 				Name:  "kubernetes-webhook-injector.ack.aliyun.com",
@@ -224,6 +226,7 @@ func (ws *WebHookServer) registerMutatingWebhookConfiguration() error {
 				},
 				AdmissionReviewVersions: []string{"v1", "v1beta1"},
 				SideEffects:             &sideEffects,
+				FailurePolicy:           &ignore,
 			}
 
 			webhookConfig := &mutateV1.MutatingWebhookConfiguration{

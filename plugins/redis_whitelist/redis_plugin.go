@@ -20,9 +20,9 @@ const (
 	LabelRedisID         = "ack.aliyun.com/redis_id"
 	PluginName           = "RedisWhiteListPlugin"
 	InitContainerName    = "redis-plugin"
-	LabelWhiteListName   = "ack.aliyun.com/white_list_name"
+	LabelWhiteListName   = "ack.aliyun.com/redis_white_list_name"
 	IMAGE_ENV            = "REDIS_PLUGIN_IMAGE"
-	AddWlstCommandTemplt = "/root/redis-whitelist-plugin --region_id %s --redis_id %s --white_list_name %s --access_key_id %s --access_key_secret %s --sts_token %s"
+	AddWlstCommandTemplt = "/root/redis-whitelist-plugin --region_id %s --redis_id %s --white_list_name %s --access_key_id %s --access_key_secret %s --sts_token %s %s"
 )
 
 var (
@@ -69,7 +69,7 @@ func (rp *redisWhiteListPlugin) MatchAnnotations(podAnnots map[string]string) bo
 	return true
 }
 
-func (rp *redisWhiteListPlugin) Patch(pod *apiv1.Pod, operation admissionv1.Operation) []utils.PatchOperation {
+func (rp *redisWhiteListPlugin) Patch(pod *apiv1.Pod, operation admissionv1.Operation, option *utils.PluginOption) []utils.PatchOperation {
 	var opPatches []utils.PatchOperation
 	switch operation {
 	case admissionv1.Create:
@@ -79,7 +79,7 @@ func (rp *redisWhiteListPlugin) Patch(pod *apiv1.Pod, operation admissionv1.Oper
 			}
 		}
 
-		patch := rp.patchInitContainer(pod)
+		patch := rp.patchInitContainer(pod, option)
 		opPatches = append(opPatches, patch)
 		go func() {
 			chPod := k8s.GetPodsByPluginNameCh(pod.Namespace, pod.GenerateName, InitContainerName)
@@ -117,7 +117,7 @@ func (rp *redisWhiteListPlugin) Patch(pod *apiv1.Pod, operation admissionv1.Oper
 	return opPatches
 }
 
-func (rp *redisWhiteListPlugin) patchInitContainer(pod *apiv1.Pod) utils.PatchOperation {
+func (rp *redisWhiteListPlugin) patchInitContainer(pod *apiv1.Pod, option *utils.PluginOption) utils.PatchOperation {
 	authInfo, err := openapi.GetAuthInfo()
 	if err != nil {
 		log.Fatalf("Failed to authenticate OpenAPI client due to %v", err)
@@ -131,6 +131,11 @@ func (rp *redisWhiteListPlugin) patchInitContainer(pod *apiv1.Pod) utils.PatchOp
 	akSecrt := authInfo.AccessKeySecret
 	stsToken := authInfo.SecurityToken
 
+	access := ""
+	if option.IntranetAccess {
+		access = "--intranet_access"
+	}
+
 	con := apiv1.Container{
 		Image:           InitContainerImage,
 		Name:            InitContainerName,
@@ -138,7 +143,7 @@ func (rp *redisWhiteListPlugin) patchInitContainer(pod *apiv1.Pod) utils.PatchOp
 	}
 
 	con.Command = strings.Split(
-		fmt.Sprintf(AddWlstCommandTemplt, regionId, redisId, whiteListName, akId, akSecrt, stsToken), " ")
+		fmt.Sprintf(AddWlstCommandTemplt, regionId, redisId, whiteListName, akId, akSecrt, stsToken, access), " ")
 
 	con.Env = []apiv1.EnvVar{
 		{Name: "POD_NAME", ValueFrom: &apiv1.EnvVarSource{FieldRef: &apiv1.ObjectFieldSelector{FieldPath: "metadata.name"}}},

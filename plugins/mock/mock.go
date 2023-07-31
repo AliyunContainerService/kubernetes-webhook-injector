@@ -25,7 +25,7 @@ func (mp *MockPlugin) MatchAnnotations(map[string]string) bool {
 	return false
 }
 
-func (mp *MockPlugin) Patch(pod *apiv1.Pod, operation admissionv1.Operation) []utils.PatchOperation {
+func (mp *MockPlugin) Patch(pod *apiv1.Pod, operation admissionv1.Operation, option *utils.PluginOption) []utils.PatchOperation {
 	return nil
 }
 
