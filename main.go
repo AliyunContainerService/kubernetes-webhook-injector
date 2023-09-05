@@ -14,6 +14,7 @@ limitations under the License.
 package main
 
 import (
+	"github.com/AliyunContainerService/kubernetes-webhook-injector/pkg/openapi"
 	"github.com/AliyunContainerService/kubernetes-webhook-injector/pkg/webhook"
 	"log"
 	"net/http"
@@ -25,6 +26,7 @@ func main() {
 	if wo, err = webhook.NewWebHookOptions(); err != nil {
 		log.Fatalf("Please input valid params. %v", err)
 	}
+	openapi.InitClient(wo.IntranetAccess)
 
 	ws, err := webhook.NewWebHookServer(wo)
 

@@ -12,7 +12,7 @@ import (
 	"github.com/AliyunContainerService/kubernetes-webhook-injector/pkg/k8s"
 	"github.com/AliyunContainerService/kubernetes-webhook-injector/pkg/openapi"
 	"github.com/AliyunContainerService/kubernetes-webhook-injector/plugins/utils"
-	"k8s.io/api/admission/v1beta1"
+	admissionv1 "k8s.io/api/admission/v1"
 	apiv1 "k8s.io/api/core/v1"
 )
 
@@ -21,7 +21,7 @@ const (
 	LabelAccessControlPolicyID = "ack.aliyun.com/access_control_policy_id"
 
 	InitContainerName    = "slb-plugin"
-	AddWlstCommandTemplt = "/root/slb-access-control-plugin --region_id %s --access_control_policy_id %s --access_key_id %s --access_key_secret %s --sts_token %s"
+	AddWlstCommandTemplt = "/root/slb-access-control-plugin --region_id %s --access_control_policy_id %s --access_key_id %s --access_key_secret %s --sts_token %s %s"
 	IMAGE_ENV            = "SLB_PLUGIN_IMAGE"
 )
 
@@ -71,17 +71,17 @@ func (sp *SLBPlugin) MatchAnnotations(podAnnots map[string]string) bool {
 	return true
 }
 
-func (sp *SLBPlugin) Patch(pod *apiv1.Pod, operation v1beta1.Operation) []utils.PatchOperation {
+func (sp *SLBPlugin) Patch(pod *apiv1.Pod, operation admissionv1.Operation, option *utils.PluginOption) []utils.PatchOperation {
 	var opPatches []utils.PatchOperation
 	switch operation {
-	case v1beta1.Create:
+	case admissionv1.Create:
 		for _, c := range pod.Spec.InitContainers {
 			if c.Name == InitContainerName {
 				break
 			}
 		}
 
-		patch := sp.patchInitContainer(pod)
+		patch := sp.patchInitContainer(pod, option)
 		opPatches = append(opPatches, patch)
 		go func() {
 			chPod := k8s.GetPodsByPluginNameCh(pod.Namespace, pod.GenerateName, InitContainerName)
@@ -112,13 +112,13 @@ func (sp *SLBPlugin) Patch(pod *apiv1.Pod, operation v1beta1.Operation) []utils.
 				}
 			}
 		}()
-	case v1beta1.Delete:
+	case admissionv1.Delete:
 		sp.cleanUp(pod)
 	}
 	return opPatches
 }
 
-func (sp *SLBPlugin) patchInitContainer(pod *apiv1.Pod) utils.PatchOperation {
+func (sp *SLBPlugin) patchInitContainer(pod *apiv1.Pod, option *utils.PluginOption) utils.PatchOperation {
 	authInfo, err := openapi.GetAuthInfo()
 	if err != nil {
 		log.Fatalf("Failed to authenticate OpenAPI client due to %v", err)
@@ -131,6 +131,11 @@ func (sp *SLBPlugin) patchInitContainer(pod *apiv1.Pod) utils.PatchOperation {
 	akSecrt := authInfo.AccessKeySecret
 	stsToken := authInfo.SecurityToken
 
+	access := ""
+	if option.IntranetAccess {
+		access = "--intranet_access"
+	}
+
 	con := apiv1.Container{
 		Image:           InitContainerImage,
 		Name:            InitContainerName,
@@ -138,7 +143,7 @@ func (sp *SLBPlugin) patchInitContainer(pod *apiv1.Pod) utils.PatchOperation {
 	}
 
 	con.Command = strings.Split(
-		fmt.Sprintf(AddWlstCommandTemplt, regionId, slbAccessControlPolicy, akId, akSecrt, stsToken), " ")
+		fmt.Sprintf(AddWlstCommandTemplt, regionId, slbAccessControlPolicy, akId, akSecrt, stsToken, access), " ")
 
 	con.Env = []apiv1.EnvVar{
 		{Name: "POD_NAME", ValueFrom: &apiv1.EnvVarSource{FieldRef: &apiv1.ObjectFieldSelector{FieldPath: "metadata.name"}}},

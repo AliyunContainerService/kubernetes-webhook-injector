@@ -29,12 +29,12 @@ If you no longer need the ack-kubernetes-webhook-injector, please execute the fo
 You only need to use Annotation in the Pod Spec of the Pod replica controller to indicate the RDS instance ID and the RDS whitelist grouping name. When a Pod is created, ack-kubernetes-webhook-injector adds the IP address of the Pod to a whitelist or security group rule and removes the rule when the Pod is deleted.
 Pod's Annotation needs to include:
 * RDS Whitelist:
-  - RDS Instance ID: ack.aliyun.com/rds_id
-  - RDS Whitelist Group Name: ack.aliyun.com/white_list_name
-* SLB Access Control: ack.aliyun.com/access_control_ policy_id
+  - RDS Instance ID: `ack.aliyun.com/rds_id`
+  - RDS Whitelist Group Name: `ack.aliyun.com/white_list_name`
+* SLB Access Control: `ack.aliyun.com/access_control_policy_id`
 * Redis Whitelist:
-  - Redis Instance ID:ack.aliyun.com/redis_id
-  - Redis White List Grouping: ack.aliyun.com/white_ list_ name
+  - Redis Instance ID: `ack.aliyun.com/redis_id`
+  - Redis White List Grouping: `ack.aliyun.com/redis_white_list_name`
 
 For more information, see [Configure the Alibaba cloud product whitelist dynamically for Pod](https://help.aliyun.com/document_detail/188574.html).
 ## License

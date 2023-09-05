@@ -19,6 +19,7 @@ type Options struct {
 	AccessKeySecret string `long:"access_key_secret" required:"true"`
 	StsToken        string `long:"sts_token"`
 	ToDelete        bool   `long:"delete"`
+	IntranetAccess  bool   `long:"intranet_access"`
 }
 
 var (
@@ -48,6 +49,8 @@ func main() {
 	}
 
 	redisIDs := strings.Split(opt.RedisIDs, ",")
+
+	openapi.InitClient(opt.IntranetAccess)
 
 	authInfo := &openapi.AKInfo{
 		AccessKeyId:     opt.AccessKeyID,
