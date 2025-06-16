@@ -3,6 +3,7 @@ package openapi
 import (
 	"fmt"
 	redis "github.com/aliyun/alibaba-cloud-sdk-go/services/r-kvstore"
+	"strings"
 )
 
 func (ro *RedisWhitelistOperator) DescribeWhitelists(redisId string) ([]redis.SecurityIpGroup, error) {
@@ -35,6 +36,12 @@ func (ro *RedisWhitelistOperator) CreateOrAppendWhitelist(redisId, podIP, whitel
 	}
 
 	_, err := ro.ModifySecurityIps(request)
+	if err != nil {
+		if strings.Contains(ParseErrorMessage(err.Error()).ErrorCode, "SecurityIPList.Duplicate") {
+			return nil
+		}
+	}
+
 	return err
 }
 
@@ -78,5 +85,11 @@ func (ro *RedisWhitelistOperator) DeleteWhitelist(redisId, whitelistName, podIP 
 	}
 
 	_, err = ro.ModifySecurityIps(request)
+	if err != nil {
+		if strings.Contains(ParseErrorMessage(err.Error()).ErrorCode, "InvalidSecurityIPList.NotFound") {
+			return nil
+		}
+	}
+
 	return err
 }
