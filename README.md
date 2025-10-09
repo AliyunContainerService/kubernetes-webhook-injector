@@ -8,6 +8,7 @@ Currently ack-kubernetes-webhook-injector supports the following functions:
 * When creating/deleting a Pod, automatically add/remove the Pod's IP from the specified RDS whitelist .
 * When creating/deleting a Pod, automatically add/remove the Pod's IP from the specified REDIS whitelist.
 * When creating/deleting a Pod, automatically add/remove the Pod's IP from the specified SLB access control list.
+* When creating/deleting a Pod, automatically add/remove the Pod's IP from the specified POLARDB whitelist.
 
 ## Quick Start
 ### Build and Deploy
@@ -35,6 +36,9 @@ Pod's Annotation needs to include:
 * Redis Whitelist:
   - Redis Instance ID: `ack.aliyun.com/redis_id`
   - Redis White List Grouping: `ack.aliyun.com/redis_white_list_name`
+* POLARDB Whitelist:
+  - POLARDB Instance ID: `ack.aliyun.com/polardb_id`
+  - POLARDB Whitelist Group Name: `ack.aliyun.com/white_list_name`
 
 For more information, see [Configure the Alibaba cloud product whitelist dynamically for Pod](https://help.aliyun.com/document_detail/188574.html).
 ## License

@@ -2,7 +2,8 @@ package openapi
 
 import (
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
-	"github.com/aliyun/alibaba-cloud-sdk-go/services/r-kvstore"
+	"github.com/aliyun/alibaba-cloud-sdk-go/services/polardb"
+	r_kvstore "github.com/aliyun/alibaba-cloud-sdk-go/services/r-kvstore"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/rds"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/slb"
 )
@@ -29,4 +30,8 @@ type RedisWhitelistOperator struct {
 
 type SLBAccessControlPolicyOperator struct {
 	*slb.Client
+}
+
+type PolarDBWhitelistOperator struct {
+	*polardb.Client
 }

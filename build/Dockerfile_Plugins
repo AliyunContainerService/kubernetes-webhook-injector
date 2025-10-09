@@ -14,5 +14,5 @@ COPY --from=builder /go/src/github.com/AliyunContainerService/kubernetes-webhook
 COPY --from=builder /go/src/github.com/AliyunContainerService/kubernetes-webhook-injector/bin/rds-whitelist-plugin .
 COPY --from=builder /go/src/github.com/AliyunContainerService/kubernetes-webhook-injector/bin/redis-whitelist-plugin .
 COPY --from=builder /go/src/github.com/AliyunContainerService/kubernetes-webhook-injector/bin/slb-access-control-plugin .
-
+COPY --from=builder /go/src/github.com/AliyunContainerService/kubernetes-webhook-injector/bin/polardb-whitelist-plugin .
 

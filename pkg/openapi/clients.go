@@ -8,6 +8,7 @@ import (
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk"
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/endpoints"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
+	"github.com/aliyun/alibaba-cloud-sdk-go/services/polardb"
 	redis "github.com/aliyun/alibaba-cloud-sdk-go/services/r-kvstore"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/rds"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/slb"
@@ -28,11 +29,13 @@ func InitClient(intranetAccess bool) {
 	// https://next.api.aliyun.com/product/Slb
 	// https://next.api.aliyun.com/product/R-kvstore
 	// https://next.api.aliyun.com/product/Ecs
+	// https://next.api.aliyun.com/product/polardb
 	if intranetAccess {
 		endpoints.AddEndpointMapping(RegionID, "Rds", fmt.Sprintf("rds-vpc.%s.aliyuncs.com", RegionID))
 		endpoints.AddEndpointMapping(RegionID, "Slb", fmt.Sprintf("slb-vpc.%s.aliyuncs.com", RegionID))
 		endpoints.AddEndpointMapping(RegionID, "R-kvstore", fmt.Sprintf("r-kvstore-vpc.%s.aliyuncs.com", RegionID))
 		endpoints.AddEndpointMapping(RegionID, "Ecs", fmt.Sprintf("ecs-vpc.%s.aliyuncs.com", RegionID))
+		endpoints.AddEndpointMapping(RegionID, "polardb", fmt.Sprintf("polardb-vpc.%s.aliyuncs.com", RegionID))
 	}
 }
 
@@ -84,6 +87,19 @@ func GetSLBAccessControlPolicyOperator(authInfo *AKInfo) (*SLBAccessControlPolic
 
 	return &SLBAccessControlPolicyOperator{
 		Client: &slb.Client{
+			Client: *sdkCli,
+		},
+	}, nil
+}
+
+func GetPolarDBWhiteListOperator(authInfo *AKInfo) (*PolarDBWhitelistOperator, error) {
+	sdkCli, err := getSDKClient(authInfo)
+	if err != nil {
+		return nil, err
+	}
+
+	return &PolarDBWhitelistOperator{
+		Client: &polardb.Client{
 			Client: *sdkCli,
 		},
 	}, nil
