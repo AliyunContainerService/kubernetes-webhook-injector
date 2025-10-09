@@ -3,8 +3,10 @@ package plugins
 import (
 	"encoding/json"
 	"fmt"
+
 	"github.com/AliyunContainerService/kubernetes-webhook-injector/pkg/openapi"
 	"github.com/AliyunContainerService/kubernetes-webhook-injector/plugins/mock"
+	"github.com/AliyunContainerService/kubernetes-webhook-injector/plugins/polardb_whitelist"
 	"github.com/AliyunContainerService/kubernetes-webhook-injector/plugins/rds_whitelist"
 	"github.com/AliyunContainerService/kubernetes-webhook-injector/plugins/redis_whitelist"
 	"github.com/AliyunContainerService/kubernetes-webhook-injector/plugins/security_group"
@@ -31,6 +33,7 @@ func init() {
 	pluginManagerSingleton.register(rds_whitelist.NewRdsPlugin())
 	pluginManagerSingleton.register(redis_whitelist.NewRedisPlugin())
 	pluginManagerSingleton.register(slb_access_control_policy.NewSLBPlugin())
+	pluginManagerSingleton.register(polardb_whitelist.NewPolardbPlugin())
 }
 
 type PluginManager struct {
